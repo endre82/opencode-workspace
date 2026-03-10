@@ -70,8 +70,8 @@ sed -i "s/OPENCODE_SERVER_PASSWORD=.*/OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD
 
 # Set volume paths
 sed -i "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=./workspace|" "${ENV_DIR}/.env"
-sed -i "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=~/.config/opencode:ro|" "${ENV_DIR}/.env"
-sed -i "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=./opencode_config:rw|" "${ENV_DIR}/.env"
+sed -i "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=~/.config/opencode|" "${ENV_DIR}/.env"
+sed -i "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=./opencode_config|" "${ENV_DIR}/.env"
 
 echo ""
 echo "✅ Environment ${ENV_NAME} created successfully"

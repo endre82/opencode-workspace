@@ -45,31 +45,48 @@ fi
 echo "✅ Base image built successfully"
 cd ..
 
-# Step 3: Build dev1 environment
+# Step 3: Ensure build-test-env environment exists
 echo ""
-echo "3. Building dev1 environment..."
-cd environments/dev1
+echo "3. Ensuring build-test-env environment exists..."
+TEST_ENV="build-test-env"
+TEST_ENV_DIR="environments/${TEST_ENV}"
+
+if [ ! -d "${TEST_ENV_DIR}" ]; then
+    echo "Creating ${TEST_ENV} environment..."
+    echo -e "opencode\nopencode\n" | ./create-environment.sh "${TEST_ENV}"
+    
+    # Override UID/GID and port for testing
+    sed -i "s/USER_ID=.*/USER_ID=${CURRENT_UID}/" "${TEST_ENV_DIR}/.env"
+    sed -i "s/GROUP_ID=.*/GROUP_ID=${CURRENT_GID}/" "${TEST_ENV_DIR}/.env"
+    sed -i "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=4099/" "${TEST_ENV_DIR}/.env"
+    echo "✅ ${TEST_ENV} environment created with UID=${CURRENT_UID}, GID=${CURRENT_GID}, port=4099"
+fi
+
+# Step 4: Build build-test-env environment
+echo ""
+echo "4. Building ${TEST_ENV} environment..."
+cd "${TEST_ENV_DIR}"
 docker compose build
 
 if [ $? -ne 0 ]; then
-    echo "❌ dev1 environment build failed"
+    echo "❌ ${TEST_ENV} environment build failed"
     exit 1
 fi
-echo "✅ dev1 environment built successfully"
+echo "✅ ${TEST_ENV} environment built successfully"
 
-# Step 4: Test dev1 environment
+# Step 5: Test build-test-env environment
 echo ""
-echo "4. Testing dev1 environment..."
+echo "5. Testing ${TEST_ENV} environment..."
 docker compose up -d
 sleep 10
 
 # Verify user configuration
 echo ""
-echo "5. Verifying user configuration..."
-CONTAINER_USER_ID=$(docker compose exec opencode-dev1 id -u)
-CONTAINER_GROUP_ID=$(docker compose exec opencode-dev1 id -g)
-CONTAINER_USERNAME=$(docker compose exec opencode-dev1 whoami)
-CONTAINER_HOME=$(docker compose exec opencode-dev1 bash -c 'echo $HOME')
+echo "6. Verifying user configuration..."
+CONTAINER_USER_ID=$(docker compose exec opencode-${TEST_ENV} id -u)
+CONTAINER_GROUP_ID=$(docker compose exec opencode-${TEST_ENV} id -g)
+CONTAINER_USERNAME=$(docker compose exec opencode-${TEST_ENV} whoami)
+CONTAINER_HOME=$(docker compose exec opencode-${TEST_ENV} bash -c 'echo $HOME')
 
 echo "Container username: ${CONTAINER_USERNAME}"
 echo "Container home directory: ${CONTAINER_HOME}"
@@ -84,27 +101,27 @@ fi
 
 # Verify Node.js installation
 echo ""
-echo "6. Verifying Node.js installation..."
-docker compose exec opencode-dev1 node --version
-docker compose exec opencode-dev1 npm --version
+echo "7. Verifying Node.js installation..."
+docker compose exec opencode-${TEST_ENV} node --version
+docker compose exec opencode-${TEST_ENV} npm --version
 
 # Verify OpenCode installation
 echo ""
-echo "7. Verifying OpenCode installation..."
-if docker compose exec opencode-dev1 bash -c "source ~/.bashrc && opencode --version" > /dev/null 2>&1; then
+echo "8. Verifying OpenCode installation..."
+if docker compose exec opencode-${TEST_ENV} bash -c "source ~/.bashrc && opencode --version" > /dev/null 2>&1; then
     echo "✅ OpenCode installed successfully"
-    docker compose exec opencode-dev1 bash -c "source ~/.bashrc && opencode --version"
+    docker compose exec opencode-${TEST_ENV} bash -c "source ~/.bashrc && opencode --version"
 else
     echo "❌ OpenCode installation failed"
     echo "Debugging info:"
     # Check if binary exists in correct location
-    docker compose exec opencode-dev1 ls -la /home/dev/.opencode/bin/ 2>/dev/null || echo "No .opencode/bin directory"
-    docker compose exec opencode-dev1 bash -c "which opencode || echo 'opencode not in PATH'; echo 'PATH:'; echo \$PATH"
+    docker compose exec opencode-${TEST_ENV} ls -la /home/dev/.opencode/bin/ 2>/dev/null || echo "No .opencode/bin directory"
+    docker compose exec opencode-${TEST_ENV} bash -c "which opencode || echo 'opencode not in PATH'; echo 'PATH:'; echo \$PATH"
 fi
 
-# Step 5: Cleanup
+# Step 6: Cleanup
 echo ""
-echo "8. Cleaning up..."
+echo "9. Cleaning up..."
 docker compose down -v
 cd ../..
 
