@@ -1,0 +1,52 @@
+services:
+  opencode-{{ENV_NAME}}:
+    build:
+      context: ../../base
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    image: opencode-workspace:{{ENV_NAME}}
+    container_name: opencode-{{ENV_NAME}}
+    hostname: opencode-{{ENV_NAME}}
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ${WORKSPACE_DIR}:/home/dev/workspace:rw
+      - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
+      - ${OPENCODE_ENV_CONFIG}:/home/dev/.local/share/opencode:rw
+      - ../../base/config/entrypoint.sh:/entrypoint.sh:ro
+      - ../../base/config/healthcheck.sh:/healthcheck.sh:ro
+    ports:
+      - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
+    environment:
+      - TZ=${TIMEZONE:-UTC}
+      - OPENCODE_CONFIG_DIR=/home/dev/.config/opencode
+      - SSH_AUTH_SOCK=/ssh-agent
+      - ENV_NAME={{ENV_NAME}}
+      - OPENCODE_SERVER_ENABLED=${OPENCODE_SERVER_ENABLED:-true}
+      - OPENCODE_SERVER_HOST=${OPENCODE_SERVER_HOST:-0.0.0.0}
+      - OPENCODE_SERVER_PORT=${OPENCODE_SERVER_PORT:-4096}
+      - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
+      - OPENCODE_SERVER_CORS=${OPENCODE_SERVER_CORS}
+    networks:
+      opencode-net:
+        aliases:
+          - {{ENV_NAME}}.opencode.local
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    entrypoint: ["/entrypoint.sh"]
+    command: ["/bin/bash"]
+
+networks:
+  opencode-net:
+    name: opencode-network
+    driver: bridge
+    external: true

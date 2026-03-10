@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "type": "docker-model-runner",
+      "name": "Local DMR",
+      "url": "http://host.docker.internal:12434"
+    }
+  ],
+  "defaultProvider": "Local DMR",
+  "modelCacheDir": "/home/dev/.local/share/opencode/cache",
+  "sessionDir": "/home/dev/.local/share/opencode/sessions"
+}

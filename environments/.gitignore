@@ -1,0 +1,5 @@
+*
+!.gitignore
+!template/
+!template/.env.template
+!template/docker-compose.yml.template

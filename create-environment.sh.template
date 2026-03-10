@@ -1,0 +1,46 @@
+#!/bin/bash
+# Template for creating new OpenCode environment
+# This will be customized in the future
+
+if [ -z "$1" ]; then
+    echo "Usage: $0 <environment-name>"
+    echo "Example: $0 dev3"
+    exit 1
+fi
+
+ENV_NAME="$1"
+ENV_DIR="environments/${ENV_NAME}"
+
+if [ -d "${ENV_DIR}" ]; then
+    echo "Error: Environment ${ENV_NAME} already exists"
+    exit 1
+fi
+
+echo "Creating new environment: ${ENV_NAME}"
+
+# Create directory structure
+mkdir -p "${ENV_DIR}/workspace"
+
+# Copy and customize templates
+cp environments/template/docker-compose.yml.template "${ENV_DIR}/docker-compose.yml"
+cp environments/template/.env.template "${ENV_DIR}/.env"
+
+# Replace placeholders
+sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/docker-compose.yml"
+sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/.env"
+
+# Assign next available user ID
+LAST_UID=$(find environments/ -name ".env" -type f ! -path "*/template/*" -exec grep USER_ID {} \; | cut -d= -f2 | sort -n | tail -1)
+NEXT_UID=$((LAST_UID + 1))
+sed -i "s/USER_ID=.*/USER_ID=${NEXT_UID}/" "${ENV_DIR}/.env"
+sed -i "s/GROUP_ID=.*/GROUP_ID=${NEXT_UID}/" "${ENV_DIR}/.env"
+sed -i "s/CONTAINER_NAME=.*/CONTAINER_NAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
+sed -i "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
+
+echo "Environment ${ENV_NAME} created successfully"
+echo "User ID assigned: ${NEXT_UID}"
+echo ""
+echo "Next steps:"
+echo "1. Review ${ENV_DIR}/.env for any customizations"
+echo "2. Run: cd ${ENV_DIR} && docker-compose build"
+echo "3. Run: cd ${ENV_DIR} && docker-compose up -d"
