@@ -12,6 +12,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ${WORKSPACE_DIR}:/home/dev/workspace:rw
+      - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw
       - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
       - ${OPENCODE_ENV_CONFIG}:/home/dev/.local/share/opencode:rw
       - ../../base/config/entrypoint.sh:/entrypoint.sh:ro
