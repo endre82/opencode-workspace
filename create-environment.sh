@@ -88,21 +88,29 @@ mkdir -p "shared/models"
 cp environments/template/docker-compose.yml.template "${ENV_DIR}/docker-compose.yml"
 cp environments/template/.env.template "${ENV_DIR}/.env"
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS sed syntax
+    SED_INPLACE="sed -i ''"
+else
+    # Linux sed syntax
+    SED_INPLACE="sed -i"
+fi
+
 # Replace placeholders
-sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/docker-compose.yml"
-sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/.env"
+$SED_INPLACE "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/docker-compose.yml"
+$SED_INPLACE "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/.env"
 
 # Update .env file with user-provided values
-sed -i "s/USER_ID=.*/USER_ID=${USER_ID}/" "${ENV_DIR}/.env"
-sed -i "s/GROUP_ID=.*/GROUP_ID=${GROUP_ID}/" "${ENV_DIR}/.env"
-sed -i "s/CONTAINER_NAME=.*/CONTAINER_NAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
-sed -i "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
-sed -i "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=${SERVER_PORT}/" "${ENV_DIR}/.env"
-sed -i "s/OPENCODE_SERVER_USERNAME=.*/OPENCODE_SERVER_USERNAME=${SERVER_USERNAME}/" "${ENV_DIR}/.env"
-sed -i "s|OPENCODE_SERVER_PASSWORD=.*|OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD}|" "${ENV_DIR}/.env"
-sed -i "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=${WORKSPACE_DIR}|" "${ENV_DIR}/.env"
-sed -i "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=${GLOBAL_CONFIG}|" "${ENV_DIR}/.env"
-sed -i "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=${OPENCODE_ENV_CONFIG}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s/USER_ID=.*/USER_ID=${USER_ID}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/GROUP_ID=.*/GROUP_ID=${GROUP_ID}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/CONTAINER_NAME=.*/CONTAINER_NAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=${SERVER_PORT}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/OPENCODE_SERVER_USERNAME=.*/OPENCODE_SERVER_USERNAME=${SERVER_USERNAME}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s|OPENCODE_SERVER_PASSWORD=.*|OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=${WORKSPACE_DIR}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=${GLOBAL_CONFIG}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=${OPENCODE_ENV_CONFIG}|" "${ENV_DIR}/.env"
 
 echo ""
 echo "✅ Environment ${ENV_NAME} created successfully"

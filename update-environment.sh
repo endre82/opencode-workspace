@@ -69,34 +69,42 @@ echo "Applying new template format..."
 cp environments/template/docker-compose.yml.template "${ENV_DIR}/docker-compose.yml.new"
 cp environments/template/.env.template "${ENV_DIR}/.env.new"
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS sed syntax
+    SED_INPLACE="sed -i ''"
+else
+    # Linux sed syntax
+    SED_INPLACE="sed -i"
+fi
+
 # Replace placeholders in new files
-sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/docker-compose.yml.new"
-sed -i "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/docker-compose.yml.new"
+$SED_INPLACE "s/{{ENV_NAME}}/${ENV_NAME}/g" "${ENV_DIR}/.env.new"
 
 # Apply existing configuration to new files
 if [ -n "$EXISTING_USER_ID" ]; then
-    sed -i "s/USER_ID=.*/USER_ID=${EXISTING_USER_ID}/" "${ENV_DIR}/.env.new"
-    sed -i "s/GROUP_ID=.*/GROUP_ID=${EXISTING_GROUP_ID}/" "${ENV_DIR}/.env.new"
+    $SED_INPLACE "s/USER_ID=.*/USER_ID=${EXISTING_USER_ID}/" "${ENV_DIR}/.env.new"
+    $SED_INPLACE "s/GROUP_ID=.*/GROUP_ID=${EXISTING_GROUP_ID}/" "${ENV_DIR}/.env.new"
 fi
 
 if [ -n "$EXISTING_PORT" ]; then
-    sed -i "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=${EXISTING_PORT}/" "${ENV_DIR}/.env.new"
+    $SED_INPLACE "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=${EXISTING_PORT}/" "${ENV_DIR}/.env.new"
 fi
 
 # Set server credentials
-sed -i "s/OPENCODE_SERVER_USERNAME=.*/OPENCODE_SERVER_USERNAME=${SERVER_USERNAME}/" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s/OPENCODE_SERVER_USERNAME=.*/OPENCODE_SERVER_USERNAME=${SERVER_USERNAME}/" "${ENV_DIR}/.env.new"
 if [ -n "$SERVER_PASSWORD" ]; then
-    sed -i "s/OPENCODE_SERVER_PASSWORD=.*/OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD}/" "${ENV_DIR}/.env.new"
+    $SED_INPLACE "s/OPENCODE_SERVER_PASSWORD=.*/OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD}/" "${ENV_DIR}/.env.new"
 fi
 
 # Set container name and hostname
-sed -i "s/CONTAINER_NAME=.*/CONTAINER_NAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env.new"
-sed -i "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s/CONTAINER_NAME=.*/CONTAINER_NAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env.new"
 
 # Set volume paths
-sed -i "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=./workspace|" "${ENV_DIR}/.env.new"
-sed -i "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=~/.config/opencode:ro|" "${ENV_DIR}/.env.new"
-sed -i "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=./opencode_config:rw|" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=./workspace|" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=~/.config/opencode:ro|" "${ENV_DIR}/.env.new"
+$SED_INPLACE "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=./opencode_config:rw|" "${ENV_DIR}/.env.new"
 
 # Replace old files with new ones
 mv "${ENV_DIR}/docker-compose.yml.new" "${ENV_DIR}/docker-compose.yml"

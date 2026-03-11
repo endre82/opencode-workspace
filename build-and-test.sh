@@ -55,10 +55,18 @@ if [ ! -d "${TEST_ENV_DIR}" ]; then
     echo "Creating ${TEST_ENV} environment..."
     echo -e "opencode\nopencode\n" | ./create-environment.sh "${TEST_ENV}"
     
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed syntax
+        SED_INPLACE="sed -i ''"
+    else
+        # Linux sed syntax
+        SED_INPLACE="sed -i"
+    fi
+
     # Override UID/GID and port for testing
-    sed -i "s/USER_ID=.*/USER_ID=${CURRENT_UID}/" "${TEST_ENV_DIR}/.env"
-    sed -i "s/GROUP_ID=.*/GROUP_ID=${CURRENT_GID}/" "${TEST_ENV_DIR}/.env"
-    sed -i "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=4099/" "${TEST_ENV_DIR}/.env"
+    $SED_INPLACE "s/USER_ID=.*/USER_ID=${CURRENT_UID}/" "${TEST_ENV_DIR}/.env"
+    $SED_INPLACE "s/GROUP_ID=.*/GROUP_ID=${CURRENT_GID}/" "${TEST_ENV_DIR}/.env"
+    $SED_INPLACE "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=4099/" "${TEST_ENV_DIR}/.env"
     echo "✅ ${TEST_ENV} environment created with UID=${CURRENT_UID}, GID=${CURRENT_GID}, port=4099"
 fi
 
