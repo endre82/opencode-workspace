@@ -123,7 +123,7 @@ Each environment runs OpenCode in server mode by default, exposing an HTTP API:
 
 ```bash
 # Connect via OpenCode TUI
-opencode --host localhost --port 4096 --username opencode --password your-password
+OPENCODE_SERVER_USERNAME=opencode OPENCODE_SERVER_PASSWORD=<your-password> opencode attach http://localhost:<port>
 
 # View API documentation
 http://localhost:4096/doc
