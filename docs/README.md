@@ -9,6 +9,7 @@ Start here if you're new to the project:
 - [Quick Start Guide](guides/quickstart.md) - Quick setup guide
 - [Wizard User Guide](guides/wizard-guide.md) - Environment creation wizard
 - [Remote Development Guide](guides/remote-dev-guide.md) - Remote development with code-server
+- [Web UI Guide](user-guides/WEBUI_GUIDE.md) - Web Management UI documentation
 
 ### 🏗️ Feature Documentation
 Implementation docs for each major feature:

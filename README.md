@@ -2,11 +2,12 @@
 
 Separated development environments for OpenCode with Ubuntu 24.04.
 
-**NEW:** Remote development with code-server (VSCode in browser) and namespace-based agent/skill sharing!
+**NEW:** Remote development with code-server (VSCode in browser), Web Management UI, and namespace-based agent/skill sharing!
 
 ## 🎯 Key Features
 
 - **🌐 Remote IDE Access**: Full VSCode experience in your browser
+- **📊 Web Management UI**: Browser-based dashboard for monitoring services
 - **📦 Namespace System**: Share agents, skills, and workflows across environments
 - **🖥️ TUI Management**: Modern terminal UI for environment management
 - **🔒 Isolated Environments**: Each developer gets their own containerized workspace
