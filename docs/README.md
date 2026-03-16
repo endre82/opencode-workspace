@@ -6,79 +6,87 @@ Welcome to the OpenCode Workspace documentation. This guide will help you find t
 
 ### 🚀 Getting Started
 Start here if you're new to the project:
-- [QUICKSTART.md](user-guides/QUICKSTART.md) - Quick setup guide
-- [INSTALL.md](user-guides/INSTALL.md) - Detailed installation instructions
-- [REMOTE_DEV_GUIDE.md](user-guides/REMOTE_DEV_GUIDE.md) - Remote development with code-server
+- [Quick Start Guide](guides/quickstart.md) - Quick setup guide
+- [Wizard User Guide](guides/wizard-guide.md) - Environment creation wizard
+- [Remote Development Guide](guides/remote-dev-guide.md) - Remote development with code-server
 
-### 👤 User Guides
-Complete guides for using the platform:
-- [TUI-README.md](user-guides/TUI-README.md) - Terminal UI application guide
-- [WIZARD_GUIDE.md](user-guides/WIZARD_GUIDE.md) - Environment creation wizard
-- [REMOTE_DEV_GUIDE.md](user-guides/REMOTE_DEV_GUIDE.md) - Remote development setup
+### 🏗️ Feature Documentation
+Implementation docs for each major feature:
+- [Phase 1: Base System](features/phase1-base-system.md) - Dashboard and core architecture
+- [Phase 3: Container Operations](features/phase3-container-ops.md) - Start/stop/restart functionality
+- [Phase 4: Creation Wizard](features/phase4-creation-wizard.md) - Environment creation flow
+- [Feature Index →](features/README.md) - Complete feature list with status
 
-### 🏗️ Project Overview
-High-level project information:
-- [MASTER_PLAN.md](overview/MASTER_PLAN.md) - Complete project vision and roadmap
+### 🐛 Bug Fixes
+Technical documentation of bug fixes:
+- [Bug Timeline →](bugfixes/README.md) - Chronological bug fix history
+- [Bug #001: AsyncIO](bugfixes/bug-001-asyncio-to-thread.md) - Fixed asyncio.to_thread issue
+- [Bug #002: Wizard Compose](bugfixes/bug-002-wizard-compose.md) - Fixed compose query issue
+- [Bug #003: Widget Mount](bugfixes/bug-003-widget-mount.md) - Fixed mount lifecycle error
+- [Complete Summary](summaries/complete-bugfix-summary.md) - All bugs overview
 
-### 🔧 Technical Documentation
-Deep technical references:
-- [AGENTS.md](technical/AGENTS.md) - Agent system architecture
+### 📋 Summaries
+Quick reference summaries:
+- [Complete Bugfix Summary](summaries/complete-bugfix-summary.md) - All bug fixes overview
+- [AsyncIO Bugfix Summary](summaries/bugfix-asyncio-summary.md) - Bug #001 summary
+- [Wizard Bugfix Summary](summaries/bugfix-wizard-summary.md) - Bug #002 summary
 
-### 📋 Implementation Phases
-Completed development phases:
-- [Phase 1: Remote Development](phases/phase1-remote-dev/IMPLEMENTATION_COMPLETE_PHASE1.md)
-- [Phase 3: Container Operations](phases/phase3-container-ops/PHASE3_COMPLETE.md)
-- [Phase 4: Creation Wizard](phases/phase4-wizard/PHASE4_COMPLETE.md)
-
-### 🐛 Bugfix Summaries
-Historical bugfix documentation:
-- [Complete Bugfix Summary](bugfixes/COMPLETE_BUGFIX_SUMMARY.md)
-- [Phases 3 & 4 Bugfixes](bugfixes/BUGFIX_PHASES_3_4.md)
-- [Wizard Bugfixes](bugfixes/BUGFIX_WIZARD_COMPOSE.md)
-
-### 💻 Development
-For contributors (coming soon):
-- Development setup
-- Contribution guidelines
-- Architecture decisions
+### 🧪 Testing
+Test scripts are located in `/tests/` at the project root:
+- `test_wizard.py` - Comprehensive wizard testing
+- `test_wizard_simple.py` - Simple wizard smoke test
 
 ## 📂 Directory Structure
 
 ```
 docs/
 ├── README.md                 # This file
-├── overview/                 # High-level project docs
-│   └── MASTER_PLAN.md
-├── user-guides/              # End-user documentation
-│   ├── INSTALL.md
-│   ├── QUICKSTART.md
-│   ├── REMOTE_DEV_GUIDE.md
-│   ├── TUI-README.md
-│   └── WIZARD_GUIDE.md
-├── phases/                   # Implementation phase docs
-│   ├── phase1-remote-dev/
-│   ├── phase3-container-ops/
-│   └── phase4-wizard/
-├── technical/                # Technical reference
-│   └── AGENTS.md
-├── development/              # Contributor guides (TBD)
-└── bugfixes/                 # Historical bugfix docs
-    ├── BUGFIX_PHASES_3_4.md
-    ├── BUGFIX_SUMMARY.md
-    ├── BUGFIX_WIZARD_COMPOSE.md
-    ├── COMPLETE_BUGFIX_SUMMARY.md
-    └── WIZARD_FIX_SUMMARY.md
+├── features/                 # Feature implementation docs
+│   ├── README.md            # Feature index with status
+│   ├── phase1-base-system.md
+│   ├── phase3-container-ops.md
+│   └── phase4-creation-wizard.md
+├── bugfixes/                # Bug fix technical docs
+│   ├── README.md           # Bug timeline
+│   ├── bug-001-asyncio-to-thread.md
+│   ├── bug-002-wizard-compose.md
+│   └── bug-003-widget-mount.md
+├── summaries/               # Quick reference summaries
+│   ├── complete-bugfix-summary.md
+│   ├── bugfix-asyncio-summary.md
+│   └── bugfix-wizard-summary.md
+└── guides/                  # User-facing guides
+    ├── quickstart.md
+    ├── wizard-guide.md
+    └── remote-dev-guide.md
+
+tests/                       # Test scripts (project root)
+├── test_wizard.py
+└── test_wizard_simple.py
 ```
 
 ## 🎯 Common Tasks
 
 ### I want to...
-- **Create a new environment** → [QUICKSTART.md](user-guides/QUICKSTART.md)
-- **Use the TUI application** → [TUI-README.md](user-guides/TUI-README.md)
-- **Set up remote development** → [REMOTE_DEV_GUIDE.md](user-guides/REMOTE_DEV_GUIDE.md)
-- **Understand the project vision** → [MASTER_PLAN.md](overview/MASTER_PLAN.md)
-- **Learn about agents** → [AGENTS.md](technical/AGENTS.md)
-- **See what's been completed** → [phases/](phases/)
+- **Create a new environment** → [Quick Start Guide](guides/quickstart.md)
+- **Use the creation wizard** → [Wizard Guide](guides/wizard-guide.md)
+- **Set up remote development** → [Remote Dev Guide](guides/remote-dev-guide.md)
+- **Understand container operations** → [Phase 3 Docs](features/phase3-container-ops.md)
+- **See bug fix history** → [Bug Timeline](bugfixes/README.md)
+- **Review all features** → [Feature Index](features/README.md)
+
+## 📝 Documentation Standards
+
+When adding new documentation:
+1. Choose the appropriate directory based on content type:
+   - `/features/` - Feature implementation and technical details
+   - `/bugfixes/` - Bug fix documentation with root cause analysis
+   - `/summaries/` - Quick reference and overview docs
+   - `/guides/` - User-facing guides and tutorials
+2. Use clear, descriptive filenames (e.g., `bug-001-description.md`)
+3. Include a summary at the top of each document
+4. Cross-reference related documents where relevant
+5. Update the relevant README.md index when adding new docs
 
 ## 🔗 External Resources
 
@@ -87,4 +95,4 @@ docs/
 
 ---
 
-**Need help?** Start with the [QUICKSTART.md](user-guides/QUICKSTART.md) or check the main [README.md](../README.md).
+**Need help?** Start with the [Quick Start Guide](guides/quickstart.md) or check the main [README.md](../README.md).
