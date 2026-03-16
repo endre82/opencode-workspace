@@ -2,22 +2,38 @@
 
 Separated development environments for OpenCode with Ubuntu 24.04.
 
-**NEW:** Now includes a modern TUI (Terminal User Interface) for easy environment management!
+**NEW:** Remote development with code-server (VSCode in browser) and namespace-based agent/skill sharing!
+
+## 🎯 Key Features
+
+- **🌐 Remote IDE Access**: Full VSCode experience in your browser
+- **📦 Namespace System**: Share agents, skills, and workflows across environments
+- **🖥️ TUI Management**: Modern terminal UI for environment management
+- **🔒 Isolated Environments**: Each developer gets their own containerized workspace
+- **📱 Multi-Device Access**: Code from laptop, tablet, or phone on your LAN
 
 ## Quick Start
 
-**New Users:** Start here → [QUICKSTART.md](QUICKSTART.md)
+**New to Remote Development?** → [REMOTE_DEV_GUIDE.md](docs/user-guides/REMOTE_DEV_GUIDE.md)
 
-**For the TUI:** See [TUI-README.md](TUI-README.md) for complete documentation.
+**New Users:** Start here → [QUICKSTART.md](docs/user-guides/QUICKSTART.md)
+
+**For the TUI:** See [TUI-README.md](docs/user-guides/TUI-README.md) for complete documentation.
 
 ### Immediate Use (No Installation Required)
 
 ```bash
-# Connect to running environments
-./opencode-connect.sh --list
-
-# Create new environment
+# Create new environment with code-server
 ./scripts/create-environment.sh my-env
+
+# Build and start
+cd environments/my-env
+docker compose build
+docker compose up -d
+
+# Access VSCode in browser
+open http://localhost:8096
+# (Password shown during creation)
 ```
 
 ### Full TUI Experience
@@ -37,8 +53,14 @@ opencode-workspace/
 ├── envman.py                  # 🆕 TUI Application (executable)
 ├── opencode-connect.sh        # 🆕 Remote connection helper (executable)
 ├── requirements.txt           # 🆕 Python dependencies
-├── TUI-README.md             # 🆕 Complete TUI documentation
-├── QUICKSTART.md             # 🆕 Quick start guide
+│
+├── docs/                      # 📚 Documentation
+│   ├── README.md             # Documentation index
+│   ├── user-guides/          # User documentation
+│   ├── overview/             # Project overview
+│   ├── phases/               # Implementation phases
+│   ├── technical/            # Technical reference
+│   └── development/          # Contributor guides
 │
 ├── envman/                    # 🆕 TUI package (812 lines)
 │   ├── app.py                # Main Textual application
@@ -58,11 +80,35 @@ opencode-workspace/
 │   ├── template/             # Template for new environments
 │   └── <env-name>/           # Individual environments
 └── shared/                    # Shared resources
+    ├── namespaces/           # 🆕 Shared agents, skills, workflows
+    ├── config/               # Shared OpenCode config
+    └── models/               # Shared AI models
 ```
 
 ## Features
 
-### TUI Application (New!)
+### 🆕 Remote Development (code-server)
+
+- **VSCode in Browser**: Full IDE accessible from any device
+- **Multi-Device**: Code from laptop, tablet, or phone
+- **Local Network**: Access environments from any device on your LAN
+- **Persistent Settings**: VSCode configuration persists per environment
+- **Extension Support**: Install any VSCode extension
+
+**Quick Access**: `http://localhost:8096` (port auto-assigned per environment)
+
+### 🆕 Namespace System
+
+- **Shared Agents**: Company-wide OpenCode agents for specialized tasks
+- **Shared Skills**: Reusable instruction sets and workflows  
+- **Team Workflows**: Standardized processes and checklists
+- **Knowledge Base**: Shared documentation and context
+- **Version Control**: Git-backed namespace versioning
+- **Read-Only Mounts**: Safe sharing without accidental modifications
+
+**Location**: `shared/namespaces/global/{agents,skills,workflows,context}/`
+
+### TUI Application
 
 - Interactive dashboard with real-time status
 - Environment creation wizard
@@ -71,7 +117,7 @@ opencode-workspace/
 - Docker integration
 - Keyboard-driven navigation
 
-### Remote Connection Helper (New!)
+### Remote Connection Helper
 
 - Interactive environment selection
 - List all environments with status
@@ -285,6 +331,16 @@ This script:
 - Updates to new template format
 - Creates missing directories
 - Prompts for username/password updates
+
+## 📚 Documentation
+
+Complete documentation is available in the [docs/](docs/) directory:
+
+- **[Documentation Index](docs/README.md)** - Complete navigation guide
+- **[User Guides](docs/user-guides/)** - Installation, quickstart, TUI, and remote development
+- **[Project Overview](docs/overview/)** - Vision, roadmap, and architecture
+- **[Implementation Phases](docs/phases/)** - Completed development phases
+- **[Technical Reference](docs/technical/)** - Deep technical documentation
 
 ## Notes
 

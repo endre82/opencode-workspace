@@ -2,6 +2,20 @@
 
 A modern terminal-based user interface (TUI) for managing OpenCode development environments in Docker containers.
 
+> **✅ Phase 3 Complete**: Core container operations (start/stop/restart/build) are fully implemented and tested. See [PHASE3_COMPLETE.md](../phases/phase3-container-ops/PHASE3_COMPLETE.md) for details.
+
+## Implementation Status
+
+| Phase | Feature | Status |
+|-------|---------|--------|
+| Phase 1-2 | Foundation & Dashboard | ✅ Complete |
+| **Phase 3** | **Container Operations** | **✅ Complete** |
+| Phase 4 | Environment Creation | 📋 Planned |
+| Phase 5 | Configuration Editor | 📋 Planned |
+| Phase 6 | Logs & Monitoring | 📋 Planned |
+| Phase 7 | Bulk Operations | 📋 Planned |
+| Phase 8 | Polish & Auto-refresh | 📋 Planned |
+
 ## Overview
 
 The Environment Manager TUI replaces multiple shell scripts with a unified, interactive interface for creating, configuring, managing, and monitoring OpenCode environments. It provides real-time status updates, log viewing, and quick access to all environment operations.
