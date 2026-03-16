@@ -143,10 +143,20 @@ CONTAINER_NAME=opencode-<env>   # Container naming
 HOSTNAME=opencode-<env>         # Container hostname
 NETWORK_NAME=opencode-network   # Shared network
 
+# Volume Mount Control
+# Set to 'true' to enable mounting, 'false' to disable
+# Note: You must also uncomment corresponding volume in docker-compose.yml
+MOUNT_GLOBAL_CONFIG=false        # Mount shared OpenCode config from host
+MOUNT_PROJECT_CONFIG=false       # Mount project-specific .opencode config
+MOUNT_OPENCODE_ENV_CONFIG=true   # Mount per-environment config (recommended)
+
 # Volume Configuration
-WORKSPACE_DIR=./workspace       # Workspace directory
-GLOBAL_CONFIG=~/.config/opencode:ro  # Global OpenCode config (read-only)
-OPENCODE_ENV_CONFIG=./opencode_config:rw  # Per-environment config (read-write)
+# Workspace can be isolated (./workspace) or external path (~/my-env-name)
+WORKSPACE_DIR=./workspace        # Workspace directory (isolated by default)
+GLOBAL_CONFIG=../shared/config/.opencode  # Global OpenCode config (vienna pattern)
+PROJECT_CONFIG=./opencode_project_config  # Per-project config (optional)
+OPENCODE_ENV_CONFIG=./opencode_config     # Per-environment config (always mounted)
+WORKTREE_DIR=./worktree          # Git worktrees (optional, for VSCode access)
 
 # Server Configuration
 OPENCODE_SERVER_ENABLED=true    # Enable OpenCode server
@@ -157,14 +167,140 @@ OPENCODE_SERVER_PASSWORD=       # Server password (required)
 OPENCODE_SERVER_CORS=           # CORS configuration
 ```
 
+## Volume Mount Configuration
+
+### Quick Presets
+
+**Minimal Setup (Default - vienna-agentic-vibes pattern):**
+- Workspace only + OPENCODE_ENV_CONFIG
+- Use when: You want isolated environment, no host config sharing
+- Volumes: `MOUNT_GLOBAL_CONFIG=false`, `MOUNT_PROJECT_CONFIG=false`
+
+**Standard Setup:**
+- Workspace + GLOBAL_CONFIG + OPENCODE_ENV_CONFIG
+- Use when: You need shared host OpenCode configuration
+- Volumes: `MOUNT_GLOBAL_CONFIG=true`, `MOUNT_PROJECT_CONFIG=false`
+
+**Full Setup:**
+- All mounts (Workspace + GLOBAL_CONFIG + PROJECT_CONFIG + OPENCODE_ENV_CONFIG)
+- Use when: Complex multi-project setup with shared configurations
+- Volumes: `MOUNT_GLOBAL_CONFIG=true`, `MOUNT_PROJECT_CONFIG=true`
+
+### Manual Volume Configuration
+
+To enable/disable volumes after environment creation:
+
+1. **Edit `.env` file** to set MOUNT_* variables:
+   ```bash
+   MOUNT_GLOBAL_CONFIG=true   # Enable global config mounting
+   MOUNT_PROJECT_CONFIG=false # Keep project config disabled
+   ```
+
+2. **Edit `docker-compose.yml`** to uncomment corresponding volumes:
+   ```yaml
+   volumes:
+     # Uncomment the volumes you want to mount:
+     - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro  # Uncommented
+     # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw  # Still commented
+   ```
+
+3. **Rebuild and restart** the container:
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+### Volume Mount Purposes
+
+**WORKSPACE_DIR** (always mounted):
+- Your working directory inside the container
+- Can be isolated (`./workspace`) or external (`~/my-project`)
+- Mounted as read-write
+
+**OPENCODE_ENV_CONFIG** (recommended, default: enabled):
+- Per-environment OpenCode data and cache
+- Stores conversation history, settings, extensions
+- Mounted as read-write
+
+**GLOBAL_CONFIG** (optional, default: disabled):
+- Shared OpenCode configuration from host system
+- Useful for sharing API keys, preferences across environments
+- Mounted as read-only (prevents accidental changes)
+
+**PROJECT_CONFIG** (optional, default: disabled):
+- Project-specific `.opencode` directory
+- Contains project-level prompts, workflows, custom configs
+- Mounted as read-write
+- Example use: Shared team configuration for specific project
+
+**WORKTREE_DIR** (optional, recommended for git worktree users):
+- Git worktrees created by OpenCode
+- Enables VSCode to access worktree branches directly
+- Mounted as read-write from `./worktree` to `/home/dev/.local/share/opencode/worktree`
+- Solves the visibility problem: worktrees normally hidden inside container
+
+### Git Worktree Integration
+
+If you use OpenCode's git worktree feature and want to access worktree branches in VSCode on your host machine, you need to mount the worktree directory.
+
+**Setup:**
+
+1. **Add to `.env` file** (already included in template):
+   ```bash
+   WORKTREE_DIR=./worktree
+   ```
+
+2. **Uncomment in `docker-compose.yml` volumes** (commented by default in template):
+   ```yaml
+   volumes:
+     # Uncomment to enable worktree mounting:
+     # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
+   ```
+
+3. **Create the worktree directory:**
+   ```bash
+   mkdir -p ./worktree
+   ```
+
+4. **If you have existing worktrees, copy them from the container:**
+   ```bash
+   docker cp <container-name>:/home/dev/.local/share/opencode/worktree/. ./worktree/
+   ```
+
+5. **Restart the container:**
+   ```bash
+   docker compose down && docker compose up -d
+   ```
+
+**Benefits:**
+- Worktrees appear in `environments/<env-name>/worktree/`
+- VSCode can directly open and navigate worktree branches
+- Quick context switching between main workspace and worktree branches
+- Works with vienna-agentic-vibes pattern (isolated workspace + worktrees)
+
+**Usage in VSCode:**
+```bash
+# Worktrees are located at:
+environments/vienna-agentic-vibes/worktree/a958075e.../branch-name/
+
+# Open in VSCode:
+code environments/vienna-agentic-vibes/worktree/a958075e.../branch-name/
+
+# Or create symlinks in workspace root for easier access
+```
+
+
 ## Agent Workflow Guidelines
 
 ### Creating New Environments
 1. Run interactive setup: `./create-environment.sh <new_env>`
-   - Prompts for username (default: "opencode")
-   - Prompts for password (generates random if empty)
+   - **Step 1: User Configuration** - Prompts for USER_ID and GROUP_ID
+   - **Step 2: Workspace Configuration** - Choose isolated (./workspace) or external path
+   - **Step 3: Volume Mount Configuration** - Select which volumes to mount
+   - **Step 4: Server Configuration** - Username, password, and port
    - Creates all required directories
    - Assigns unique UID/GID and port
+   - Uncomments volumes in docker-compose.yml based on selections
 2. Build: `cd environments/<new_env> && docker compose build`
 3. Validate: `./validate-environment.sh <new_env>`
 

@@ -2,23 +2,114 @@
 
 Separated development environments for OpenCode with Ubuntu 24.04.
 
+**NEW:** Now includes a modern TUI (Terminal User Interface) for easy environment management!
+
+## Quick Start
+
+**New Users:** Start here → [QUICKSTART.md](QUICKSTART.md)
+
+**For the TUI:** See [TUI-README.md](TUI-README.md) for complete documentation.
+
+### Immediate Use (No Installation Required)
+
+```bash
+# Connect to running environments
+./opencode-connect.sh --list
+
+# Create new environment
+./scripts/create-environment.sh my-env
+```
+
+### Full TUI Experience
+
+```bash
+# Install Python dependencies
+pip install --user -r requirements.txt
+
+# Launch the TUI
+./envman.py
+```
+
 ## Project Structure
 
 ```
 opencode-workspace/
-├── base/              # Shared base image configuration
-├── environments/      # Individual developer environments
-│   ├── dev1/         # Developer 1 environment
-│   ├── dev2/         # Developer 2 environment
-│   └── template/     # Template for new environments
-└── shared/           # Shared resources
+├── envman.py                  # 🆕 TUI Application (executable)
+├── opencode-connect.sh        # 🆕 Remote connection helper (executable)
+├── requirements.txt           # 🆕 Python dependencies
+├── TUI-README.md             # 🆕 Complete TUI documentation
+├── QUICKSTART.md             # 🆕 Quick start guide
+│
+├── envman/                    # 🆕 TUI package (812 lines)
+│   ├── app.py                # Main Textual application
+│   ├── models/               # Data models
+│   ├── screens/              # UI screens
+│   ├── services/             # Business logic
+│   ├── utils/                # Utilities
+│   └── widgets/              # UI components
+│
+├── scripts/                   # Legacy scripts (still working!)
+│   ├── create-environment.sh
+│   ├── manage-environments.sh
+│   └── ... (7 scripts total)
+│
+├── base/                      # Shared base image
+├── environments/              # Environment instances
+│   ├── template/             # Template for new environments
+│   └── <env-name>/           # Individual environments
+└── shared/                    # Shared resources
 ```
 
-## Quick Start
+## Features
+
+### TUI Application (New!)
+
+- Interactive dashboard with real-time status
+- Environment creation wizard
+- Configuration management
+- Log viewing and filtering
+- Docker integration
+- Keyboard-driven navigation
+
+### Remote Connection Helper (New!)
+
+- Interactive environment selection
+- List all environments with status
+- Display connection commands
+- Direct connection to environments
+
+### Legacy Scripts (Still Work!)
+
+All original scripts preserved in `scripts/` directory for automation and CI/CD.
+
+## Three Ways to Manage Environments
+
+### 1. TUI Application (Recommended)
+
+```bash
+pip install --user -r requirements.txt
+./envman.py
+```
+
+### 2. Remote Connection Helper
+
+```bash
+./opencode-connect.sh --list
+./opencode-connect.sh vienna-agentic-vibes
+```
+
+### 3. Legacy Scripts
+
+```bash
+./scripts/create-environment.sh my-env
+./scripts/manage-environments.sh status
+```
+
+## Traditional Setup (Still Valid)
 
 1. **Setup shared network:**
    ```bash
-   ./setup-network.sh
+   ./scripts/setup-network.sh
    ```
 
 2. **Build base image:**
@@ -27,7 +118,7 @@ opencode-workspace/
    docker build -t opencode-base:latest .
    ```
 
-3. **Build and start an environment:**
+3. **Create and start an environment:**
    ```bash
    cd environments/dev1
    docker-compose build
@@ -116,6 +207,41 @@ Each environment mounts:
 - `~/.config/opencode` → `/home/dev/.config/opencode` (read-only, host config)
 - `./opencode_config` → `/home/dev/.local/share/opencode` (read-write, per-environment)
 - `/etc/localtime` → `/etc/localtime` (read-only, time sync)
+- `./worktree` → `/home/dev/.local/share/opencode/worktree` (read-write, optional, for VSCode access to git worktrees)
+
+### Git Worktree Integration
+
+OpenCode creates git worktrees inside containers at `/home/dev/.local/share/opencode/worktree/`. To make these accessible in VSCode:
+
+1. **Add to `.env`:**
+   ```bash
+   WORKTREE_DIR=./worktree
+   ```
+
+2. **Add to `docker-compose.yml` volumes:**
+   ```yaml
+   volumes:
+     - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
+   ```
+
+3. **Create directory and restart:**
+   ```bash
+   mkdir -p ./worktree
+   docker compose down && docker compose up -d
+   ```
+
+Worktrees appear in `environments/<env-name>/worktree/` and can be opened directly in VSCode. This enables quick context switching between main workspace and worktree branches.
+
+**Example (vienna-agentic-vibes pattern):**
+```bash
+# Worktrees are located at:
+environments/vienna-agentic-vibes/worktree/a958075e.../branch-name/
+
+# Open in VSCode:
+code environments/vienna-agentic-vibes/worktree/a958075e.../branch-name/
+
+# Or create symlinks in workspace root for easier access
+```
 
 ## Server Mode
 

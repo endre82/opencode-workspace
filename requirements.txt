@@ -1,0 +1,21 @@
+# OpenCode Environment Manager TUI - Python Dependencies
+
+# Core TUI framework
+textual>=0.50.0
+
+# Configuration file parsing
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Docker integration
+docker>=7.0.0
+
+# Optional: Clipboard support
+pyperclip>=1.8.2
+
+# Development dependencies (optional)
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# black>=23.0.0
+# flake8>=6.0.0
+# mypy>=1.5.0
