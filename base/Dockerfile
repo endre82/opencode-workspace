@@ -74,7 +74,7 @@ WORKDIR /home/dev
 RUN curl -fsSL https://opencode.ai/install | bash
 
 # Install Web UI dependencies
-RUN pip3 install --user --no-cache-dir \
+RUN pip3 install --user --no-cache-dir --break-system-packages \
     fastapi==0.109.0 \
     uvicorn[standard]==0.27.0 \
     jinja2==3.1.3 \
