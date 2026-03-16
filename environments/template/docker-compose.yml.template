@@ -16,12 +16,18 @@ services:
       - ${OPENCODE_ENV_CONFIG}:/home/dev/.local/share/opencode:rw
       - ../../base/config/entrypoint.sh:/entrypoint.sh:ro
       - ../../base/config/healthcheck.sh:/healthcheck.sh:ro
+      # Mount envman package for web UI
+      - ../../envman:/home/dev/envman:ro
+      # Namespace mounts (read-only for safety)
+      - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
       # Optional volumes (uncomment based on MOUNT_* variables in .env)
       # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
       # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw
       # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
     ports:
       - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
+      - "${CODE_SERVER_PORT}:${CODE_SERVER_PORT}"
+      - "${WEBUI_PORT}:${WEBUI_PORT}"
     environment:
       - TZ=${TIMEZONE:-UTC}
       - OPENCODE_CONFIG_DIR=/home/dev/.config/opencode
@@ -33,6 +39,16 @@ services:
       - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
       - OPENCODE_SERVER_CORS=${OPENCODE_SERVER_CORS}
+      - CODE_SERVER_ENABLED=${CODE_SERVER_ENABLED:-true}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-8096}
+      - CODE_SERVER_AUTH=${CODE_SERVER_AUTH:-password}
+      - CODE_SERVER_PASSWORD=${CODE_SERVER_PASSWORD:-${OPENCODE_SERVER_PASSWORD}}
+      - CODE_SERVER_DISABLE_TELEMETRY=${CODE_SERVER_DISABLE_TELEMETRY:-true}
+      - CODE_SERVER_DISABLE_UPDATE_CHECK=${CODE_SERVER_DISABLE_UPDATE_CHECK:-true}
+      - WEBUI_ENABLED=${WEBUI_ENABLED:-true}
+      - WEBUI_PORT=${WEBUI_PORT:-9096}
+      - WEBUI_HOST=${WEBUI_HOST:-0.0.0.0}
+      - CONTAINER_NAME=${CONTAINER_NAME}
     networks:
       opencode-net:
         aliases:

@@ -13,6 +13,10 @@ RUN apt-get update && apt-get install -y \
     htop \
     ncdu \
     software-properties-common \
+    python3 \
+    python3-pip \
+    python3-venv \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Create dev user FIRST (before installing user-specific tools)
@@ -44,6 +48,7 @@ RUN if getent passwd ${USER_ID} > /dev/null; then \
 # Create home directory structure
 RUN mkdir -p /home/dev/.local \
     && mkdir -p /home/dev/.config/opencode \
+    && mkdir -p /home/dev/.config/code-server \
     && mkdir -p /home/dev/.local/share/opencode \
     && chown -R dev:dev /home/dev
 
@@ -51,6 +56,10 @@ RUN mkdir -p /home/dev/.local \
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install code-server (VSCode in browser)
+RUN curl -fsSL https://code-server.dev/install.sh | sh \
+    && code-server --version
 
 # Set up bash aliases for dev user
 RUN echo "alias ll='ls -la'" >> /home/dev/.bashrc \
@@ -63,6 +72,13 @@ WORKDIR /home/dev
 
 # Install OpenCode as dev user
 RUN curl -fsSL https://opencode.ai/install | bash
+
+# Install Web UI dependencies
+RUN pip3 install --user --no-cache-dir \
+    fastapi==0.109.0 \
+    uvicorn[standard]==0.27.0 \
+    jinja2==3.1.3 \
+    python-multipart==0.0.6
 
 # Set up environment (already set above, but ensure it's in final PATH)
 ENV PATH="/home/dev/.opencode/bin:/home/dev/.local/bin:${PATH}"

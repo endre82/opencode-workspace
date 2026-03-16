@@ -139,6 +139,12 @@ if echo "$USED_PORTS" | grep -q "^${SERVER_PORT}$"; then
     echo "✅ Using port ${SERVER_PORT} instead"
 fi
 
+# Calculate code-server port (OpenCode port + 4000)
+CODE_SERVER_PORT=$((SERVER_PORT + 4000))
+
+# Calculate Web UI port (OpenCode port + 5000)
+WEBUI_PORT=$((SERVER_PORT + 5000))
+
 # Create directory structure
 echo "Creating directory structure..."
 mkdir -p "${ENV_DIR}/workspace"
@@ -170,6 +176,9 @@ $SED_INPLACE "s/HOSTNAME=.*/HOSTNAME=opencode-${ENV_NAME}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s/OPENCODE_SERVER_PORT=.*/OPENCODE_SERVER_PORT=${SERVER_PORT}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s/OPENCODE_SERVER_USERNAME=.*/OPENCODE_SERVER_USERNAME=${SERVER_USERNAME}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s|OPENCODE_SERVER_PASSWORD=.*|OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s/CODE_SERVER_PORT=.*/CODE_SERVER_PORT=${CODE_SERVER_PORT}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s|CODE_SERVER_PASSWORD=.*|CODE_SERVER_PASSWORD=${SERVER_PASSWORD}|" "${ENV_DIR}/.env"
+$SED_INPLACE "s/WEBUI_PORT=.*/WEBUI_PORT=${WEBUI_PORT}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s|WORKSPACE_DIR=.*|WORKSPACE_DIR=${WORKSPACE_DIR}|" "${ENV_DIR}/.env"
 $SED_INPLACE "s|GLOBAL_CONFIG=.*|GLOBAL_CONFIG=${GLOBAL_CONFIG}|" "${ENV_DIR}/.env"
 $SED_INPLACE "s|PROJECT_CONFIG=.*|PROJECT_CONFIG=${PROJECT_CONFIG}|" "${ENV_DIR}/.env"
@@ -219,7 +228,9 @@ echo "   ✅ OPENCODE_ENV_CONFIG → /home/dev/.local/share/opencode"
 echo "      Path: ${OPENCODE_ENV_CONFIG}"
 echo ""
 echo "🖥️  Server Configuration:"
-echo "   Port: ${SERVER_PORT}"
+echo "   OpenCode Server Port: ${SERVER_PORT}"
+echo "   code-server Port: ${CODE_SERVER_PORT}"
+echo "   Web UI Port: ${WEBUI_PORT}"
 echo "   Username: ${SERVER_USERNAME}"
 echo "   Password: ${SERVER_PASSWORD}"
 echo ""
@@ -239,5 +250,7 @@ echo "1. Review ${ENV_DIR}/.env for any customizations"
 echo "2. Run: cd ${ENV_DIR} && docker compose build"
 echo "3. Run: cd ${ENV_DIR} && docker compose up -d"
 echo ""
-echo "Connect via OpenCode TUI:"
-echo "  OPENCODE_SERVER_USERNAME=${SERVER_USERNAME} OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD} opencode attach http://localhost:${SERVER_PORT}"
+echo "Access your environment:"
+echo "  VSCode in Browser: http://localhost:${CODE_SERVER_PORT}"
+echo "  Web Management UI: http://localhost:${WEBUI_PORT}"
+echo "  OpenCode CLI: OPENCODE_SERVER_USERNAME=${SERVER_USERNAME} OPENCODE_SERVER_PASSWORD=${SERVER_PASSWORD} opencode attach http://localhost:${SERVER_PORT}"

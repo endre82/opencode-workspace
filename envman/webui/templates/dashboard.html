@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ env_name }} - OpenCode Environment Manager</title>
+    
+    <!-- HTMX for dynamic updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Alpine.js for interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        header {
+            background: #1e293b;
+            border-bottom: 2px solid #334155;
+            margin-bottom: 2rem;
+            padding: 1.5rem 0;
+        }
+        
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #60a5fa;
+            margin-bottom: 0.25rem;
+        }
+        
+        header .subtitle {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+        
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        
+        .service-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            padding: 1.25rem;
+        }
+        
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .service-name {
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-running {
+            background: #065f46;
+            color: #6ee7b7;
+        }
+        
+        .status-stopped {
+            background: #7c2d12;
+            color: #fca5a5;
+        }
+        
+        .status-unknown {
+            background: #713f12;
+            color: #fde047;
+        }
+        
+        .service-info {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .service-info strong {
+            color: #cbd5e1;
+        }
+        
+        .ports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .port-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            padding: 1rem;
+        }
+        
+        .port-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .port-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #60a5fa;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .port-link {
+            color: #60a5fa;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .port-link:hover {
+            color: #93c5fd;
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #0f172a;
+            border-radius: 0.375rem;
+        }
+        
+        .info-label {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+        
+        .info-value {
+            color: #f1f5f9;
+            font-weight: 500;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.875rem;
+            border-top: 1px solid #334155;
+        }
+        
+        .refresh-indicator {
+            display: inline-block;
+            margin-left: 0.5rem;
+            color: #60a5fa;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @media (max-width: 640px) {
+            .container {
+                padding: 0.75rem;
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            .services-grid,
+            .ports-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* HTMX Loading State */
+        .htmx-request .refresh-indicator {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🖥️ {{ env_name }}</h1>
+            <div class="subtitle">OpenCode Environment Manager · Logged in as {{ username }}</div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Services Status -->
+        <div class="card" hx-get="/api/status" hx-trigger="every 5s" hx-swap="none">
+            <div class="card-title">
+                ⚡ Services Status
+                <span class="refresh-indicator">●</span>
+            </div>
+            
+            <div class="services-grid">
+                <!-- OpenCode Service -->
+                <div class="service-card">
+                    <div class="service-header">
+                        <div class="service-name">OpenCode Server</div>
+                        <span class="status-badge status-{{ opencode_status.status }}">
+                            {{ opencode_status.status }}
+                        </span>
+                    </div>
+                    <div class="service-info">
+                        <strong>Port:</strong> {{ opencode_port }}
+                    </div>
+                    {% if opencode_status.pid %}
+                    <div class="service-info">
+                        <strong>PID:</strong> {{ opencode_status.pid }}
+                    </div>
+                    {% endif %}
+                    <div class="service-info">
+                        <strong>Last check:</strong> {{ opencode_status.checked_at[:19] }}
+                    </div>
+                </div>
+                
+                <!-- code-server Service -->
+                <div class="service-card">
+                    <div class="service-header">
+                        <div class="service-name">code-server</div>
+                        <span class="status-badge status-{{ codeserver_status.status }}">
+                            {{ codeserver_status.status }}
+                        </span>
+                    </div>
+                    <div class="service-info">
+                        <strong>Port:</strong> {{ codeserver_port }}
+                    </div>
+                    {% if codeserver_status.pid %}
+                    <div class="service-info">
+                        <strong>PID:</strong> {{ codeserver_status.pid }}
+                    </div>
+                    {% endif %}
+                    <div class="service-info">
+                        <strong>Last check:</strong> {{ codeserver_status.checked_at[:19] }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Access Ports -->
+        <div class="card">
+            <div class="card-title">🌐 Access Ports</div>
+            
+            <div class="ports-grid">
+                <div class="port-card">
+                    <div class="port-label">OpenCode API</div>
+                    <div class="port-value">:{{ opencode_port }}</div>
+                    <a href="http://localhost:{{ opencode_port }}/doc" class="port-link" target="_blank">
+                        → Open API Docs
+                    </a>
+                </div>
+                
+                <div class="port-card">
+                    <div class="port-label">VSCode (code-server)</div>
+                    <div class="port-value">:{{ codeserver_port }}</div>
+                    <a href="http://localhost:{{ codeserver_port }}" class="port-link" target="_blank">
+                        → Open VSCode
+                    </a>
+                </div>
+                
+                <div class="port-card">
+                    <div class="port-label">Web Management UI</div>
+                    <div class="port-value">:{{ webui_port }}</div>
+                    <div class="port-link" style="color: #94a3b8; cursor: default;">
+                        (Current Page)
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Environment Information -->
+        <div class="card">
+            <div class="card-title">ℹ️ Environment Information</div>
+            
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-label">Environment Name</span>
+                    <span class="info-value">{{ env_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Container Name</span>
+                    <span class="info-value">{{ container_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Web UI Version</span>
+                    <span class="info-value">0.1.0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="container">
+            OpenCode Environment Manager · Built with FastAPI & HTMX
+        </div>
+    </footer>
+</body>
+</html>
