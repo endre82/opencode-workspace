@@ -180,14 +180,14 @@ class CreationService:
         # Uncomment volume mounts based on configuration
         if config.get('mount_global_config', False):
             content = content.replace(
-                '# - ${GLOBAL_CONFIG}:',
-                '      - ${GLOBAL_CONFIG}:'
+                '      # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro',
+                '      - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro'
             )
         
         if config.get('mount_project_config', False):
             content = content.replace(
-                '# - ${PROJECT_CONFIG}:',
-                '      - ${PROJECT_CONFIG}:'
+                '      # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw',
+                '      - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw'
             )
         
         with open(target_path, 'w') as f:

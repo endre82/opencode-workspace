@@ -61,7 +61,7 @@ class DeleteEnvironmentScreen(Screen):
     }
     
     .checkbox-container {
-        padding: 0.5 0;
+        padding: 1 0;
     }
     
     #confirmation-section {
