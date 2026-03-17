@@ -17,7 +17,7 @@ NC='\033[0m'
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║   OpenCode Remote Connection Helper - Installer              ║"
+echo "║    OpenCode Remote Connection Helper - Installer              ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 

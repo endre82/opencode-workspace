@@ -77,7 +77,7 @@ class DockerService:
             print(f"Error getting container info: {e}")
             return None
     
-    def start_container(self, env_dir: str) -> bool:
+    def start_container(self, env_dir: str) -> tuple[bool, str]:
         """Start container using docker compose"""
         try:
             result = subprocess.run(
@@ -87,11 +87,12 @@ class DockerService:
                 text=True,
                 check=False
             )
-            return result.returncode == 0
+            output = result.stdout + result.stderr
+            return (result.returncode == 0, output)
         except Exception as e:
             raise DockerError(f"Failed to start container: {e}")
     
-    def stop_container(self, env_dir: str) -> bool:
+    def stop_container(self, env_dir: str) -> tuple[bool, str]:
         """Stop container using docker compose"""
         try:
             result = subprocess.run(
@@ -101,15 +102,21 @@ class DockerService:
                 text=True,
                 check=False
             )
-            return result.returncode == 0
+            output = result.stdout + result.stderr
+            return (result.returncode == 0, output)
         except Exception as e:
             raise DockerError(f"Failed to stop container: {e}")
     
-    def restart_container(self, env_dir: str) -> bool:
+    def restart_container(self, env_dir: str) -> tuple[bool, str]:
         """Restart container"""
-        return self.stop_container(env_dir) and self.start_container(env_dir)
+        stop_success, stop_output = self.stop_container(env_dir)
+        if not stop_success:
+            return (False, stop_output)
+        
+        start_success, start_output = self.start_container(env_dir)
+        return (start_success, stop_output + "\n" + start_output)
     
-    def build_container(self, env_dir: str) -> bool:
+    def build_container(self, env_dir: str) -> tuple[bool, str]:
         """Build container using docker compose"""
         try:
             result = subprocess.run(
@@ -119,7 +126,8 @@ class DockerService:
                 text=True,
                 check=False
             )
-            return result.returncode == 0
+            output = result.stdout + result.stderr
+            return (result.returncode == 0, output)
         except Exception as e:
             raise DockerError(f"Failed to build container: {e}")
     
@@ -140,6 +148,57 @@ class DockerService:
             return logs.decode('utf-8') if logs else ""
         except (NotFound, DockerException, APIError) as e:
             raise DockerError(f"Failed to get logs: {e}")
+    
+    def stream_logs(self, container_name: str, tail: int = 100):
+        """Stream container logs (generator)"""
+        try:
+            container = self.client.containers.get(container_name)
+            for line in container.logs(tail=tail, follow=True, stream=True):
+                yield line.decode('utf-8', errors='replace')
+        except (NotFound, DockerException, APIError) as e:
+            raise DockerError(f"Failed to stream logs: {e}")
+    
+    def inspect_container(self, container_name: str) -> Optional[Dict[str, Any]]:
+        """Get detailed container inspection data"""
+        try:
+            container = self.client.containers.get(container_name)
+            return container.attrs
+        except NotFound:
+            return None
+        except (DockerException, APIError) as e:
+            raise DockerError(f"Failed to inspect container: {e}")
+    
+    def get_container_stats(self, container_name: str) -> Optional[Dict[str, Any]]:
+        """Get container resource usage statistics"""
+        try:
+            container = self.client.containers.get(container_name)
+            stats = container.stats(stream=False)
+            return stats
+        except NotFound:
+            return None
+        except (DockerException, APIError) as e:
+            raise DockerError(f"Failed to get container stats: {e}")
+    
+    def remove_container(self, env_dir: str, force: bool = False, volumes: bool = False) -> tuple[bool, str]:
+        """Remove container using docker compose"""
+        try:
+            command = ["docker", "compose", "down"]
+            if volumes:
+                command.append("--volumes")
+            if force:
+                command.append("--remove-orphans")
+            
+            result = subprocess.run(
+                command,
+                cwd=env_dir,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            output = result.stdout + result.stderr
+            return (result.returncode == 0, output)
+        except Exception as e:
+            raise DockerError(f"Failed to remove container: {e}")
     
     def list_networks(self) -> List[str]:
         """List Docker networks"""

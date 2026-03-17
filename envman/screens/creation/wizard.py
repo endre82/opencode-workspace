@@ -15,6 +15,7 @@ from envman.services.creation import CreationService
 from envman.services.validation import ValidationService
 from envman.services.discovery import DiscoveryService
 from envman.services.docker import DockerService
+from envman.utils.exception_logger import set_context
 
 
 class CreationWizard(Screen):
@@ -99,6 +100,7 @@ class CreationWizard(Screen):
     
     def on_mount(self) -> None:
         """Setup when wizard is mounted"""
+        set_context(screen="CreationWizard", step=self.current_step)
         self.update_progress()
         self.update_navigation()
         self.render_current_step()  # Populate first step after elements exist
@@ -134,13 +136,13 @@ class CreationWizard(Screen):
             Static("", id="error-name"),
             Label("\nUser ID:"),
             Input(
-                value=self.config['user_id'],
+                value=str(self.config['user_id']),
                 placeholder="Default: current user ID",
                 id="input-user-id"
             ),
             Label("\nGroup ID:"),
             Input(
-                value=self.config['group_id'],
+                value=str(self.config['group_id']),
                 placeholder="Default: current group ID",
                 id="input-group-id"
             ),
@@ -202,7 +204,7 @@ class CreationWizard(Screen):
         return Vertical(
             Label("Server Port:"),
             Input(
-                value=self.config['server_port'],
+                value=str(self.config['server_port']),
                 placeholder="4100",
                 id="input-port"
             ),
@@ -325,8 +327,15 @@ class CreationWizard(Screen):
         """Save current step data to config"""
         if self.current_step == 1:
             self.config['name'] = self.query_one("#input-name", Input).value.strip()
-            self.config['user_id'] = self.query_one("#input-user-id", Input).value.strip()
-            self.config['group_id'] = self.query_one("#input-group-id", Input).value.strip()
+            # Convert user_id and group_id to integers
+            try:
+                self.config['user_id'] = int(self.query_one("#input-user-id", Input).value.strip())
+            except ValueError:
+                self.config['user_id'] = 1000
+            try:
+                self.config['group_id'] = int(self.query_one("#input-group-id", Input).value.strip())
+            except ValueError:
+                self.config['group_id'] = 1000
         
         elif self.current_step == 2:
             radio = self.query_one("#workspace-type", RadioSet)
@@ -341,7 +350,11 @@ class CreationWizard(Screen):
             self.config['opencode_env_config'] = self.query_one("#input-env-path", Input).value.strip()
         
         elif self.current_step == 4:
-            self.config['server_port'] = self.query_one("#input-port", Input).value.strip()
+            # Convert server_port to integer
+            try:
+                self.config['server_port'] = int(self.query_one("#input-port", Input).value.strip())
+            except ValueError:
+                self.config['server_port'] = 4100
             self.config['server_username'] = self.query_one("#input-username", Input).value.strip()
             password = self.query_one("#input-password", Input).value.strip()
             if password:
@@ -349,6 +362,9 @@ class CreationWizard(Screen):
     
     def render_current_step(self) -> None:
         """Render the current step"""
+        # Update context with current step
+        set_context(screen="CreationWizard", step=self.current_step)
+        
         # Update step title
         step_title = self.query_one("#step-title", Static)
         if self.current_step == 1:

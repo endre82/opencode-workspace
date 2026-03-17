@@ -8,6 +8,7 @@ from envman.screens.dashboard import Dashboard
 from envman.services.discovery import DiscoveryService
 from envman.services.docker import DockerService
 from envman.utils.exceptions import DockerError
+from envman.utils.exception_logger import install_global_hook
 
 
 class EnvironmentManagerApp(App):
@@ -55,6 +56,87 @@ class EnvironmentManagerApp(App):
     DataTable > .datatable--cursor {
         background: $secondary;
     }
+    
+    /* Wizard Styles */
+    #wizard-container {
+        height: 100%;
+        padding: 2;
+    }
+    
+    #progress {
+        text-align: center;
+        text-style: bold;
+        background: $primary;
+        color: $text;
+        padding: 1;
+        margin-bottom: 1;
+    }
+    
+    #step-title {
+        text-align: center;
+        text-style: bold;
+        color: $accent;
+        padding: 1;
+        margin-bottom: 2;
+    }
+    
+    #step-content {
+        height: 1fr;
+        border: solid $primary;
+        padding: 2;
+        margin-bottom: 1;
+    }
+    
+    #step-content Label {
+        margin-bottom: 1;
+        color: $text;
+    }
+    
+    #step-content Input {
+        margin-bottom: 2;
+    }
+    
+    #step-content Static {
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+    
+    #error-name, #error-port {
+        color: $error;
+        text-style: bold;
+        margin-top: 0;
+        margin-bottom: 1;
+    }
+    
+    #wizard-nav {
+        height: 3;
+        align: center middle;
+    }
+    
+    #wizard-nav Button {
+        margin: 0 1;
+        min-width: 12;
+    }
+    
+    #summary-text {
+        color: $text;
+        background: $panel;
+        padding: 2;
+        border: solid $accent;
+    }
+    
+    #summary-action {
+        text-align: center;
+        color: $accent;
+        text-style: bold;
+        margin-top: 1;
+    }
+    
+    #workspace-help {
+        color: $text-muted;
+        text-style: italic;
+        margin-top: 1;
+    }
     """
     
     TITLE = "OpenCode Environment Manager"
@@ -62,6 +144,8 @@ class EnvironmentManagerApp(App):
     
     def __init__(self, base_dir: Path | None = None):
         super().__init__()
+        # Install global exception logger
+        install_global_hook()
         self.base_dir = base_dir or Path.cwd()
         self.discovery_service: DiscoveryService | None = None
         self.docker_service: DockerService | None = None
@@ -83,8 +167,15 @@ class EnvironmentManagerApp(App):
                     timeout=5
                 )
             
-            # Show dashboard
-            self.push_screen(Dashboard(environments))
+            # Show dashboard with services
+            self.push_screen(
+                Dashboard(
+                    environments, 
+                    self.docker_service, 
+                    self.discovery_service,
+                    self.base_dir
+                )
+            )
         
         except DockerError as e:
             self.notify(

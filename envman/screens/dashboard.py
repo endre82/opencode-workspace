@@ -1,13 +1,20 @@
 """Dashboard screen - main environment list view"""
 
+import asyncio
+from pathlib import Path
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, DataTable, Static
 from textual.containers import Container, Vertical
 from textual.binding import Binding
+from textual.worker import Worker, WorkerState
 from rich.text import Text
 
 from envman.models.environment import Environment
+from envman.services.docker import DockerService
+from envman.services.discovery import DiscoveryService
+from envman.utils.exceptions import DockerError
+from envman.utils.exception_logger import set_context
 from typing import List
 
 
@@ -28,9 +35,18 @@ class Dashboard(Screen):
         Binding("q", "quit", "Quit"),
     ]
     
-    def __init__(self, environments: List[Environment]):
+    def __init__(
+        self, 
+        environments: List[Environment],
+        docker_service: DockerService,
+        discovery_service: DiscoveryService,
+        workspace_root: Path
+    ):
         super().__init__()
         self.environments = environments
+        self.docker_service = docker_service
+        self.discovery_service = discovery_service
+        self.workspace_root = workspace_root
         self.selected_env: Environment | None = None
     
     def compose(self) -> ComposeResult:
@@ -46,6 +62,8 @@ class Dashboard(Screen):
     
     def on_mount(self) -> None:
         """Setup the table when mounted"""
+        set_context(screen="Dashboard")
+        
         table = self.query_one("#env-table", DataTable)
         table.cursor_type = "row"
         table.zebra_stripes = True
@@ -105,68 +123,251 @@ class Dashboard(Screen):
     
     def action_new_environment(self) -> None:
         """Create new environment"""
-        self.app.notify("Create new environment (not yet implemented)")
+        from envman.screens.creation.wizard import CreationWizard
+        
+        wizard = CreationWizard(
+            docker_service=self.docker_service,
+            discovery_service=self.discovery_service,
+            workspace_root=self.workspace_root
+        )
+        
+        # Push wizard screen, refresh when it closes
+        def on_wizard_close(result) -> None:
+            self.action_refresh()
+        
+        self.app.push_screen(wizard, on_wizard_close)
     
     def action_start_environment(self) -> None:
         """Start selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Starting {self.selected_env.name}...")
+        
+        self.app.notify(f"Starting {self.selected_env.name}...", timeout=2)
+        self.run_worker(self._start_environment(self.selected_env), exclusive=True)
+    
+    async def _start_environment(self, env: Environment) -> None:
+        """Worker to start environment"""
+        try:
+            success, output = await asyncio.to_thread(
+                self.docker_service.start_container, 
+                str(env.path)
+            )
+            
+            if success:
+                # Update status
+                env.refresh_status(self.docker_service)
+                self.refresh_table()
+                self.update_status_bar()
+                self.app.notify(f"✓ Started {env.name}", severity="information")
+            else:
+                # Show first line of error
+                error_line = output.split('\n')[0] if output else "Unknown error"
+                self.app.notify(f"✗ Failed to start {env.name}: {error_line}", severity="error", timeout=5)
+        
+        except DockerError as e:
+            self.app.notify(f"✗ Error starting {env.name}: {e}", severity="error")
+        except Exception as e:
+            self.app.notify(f"✗ Unexpected error: {e}", severity="error")
     
     def action_stop_environment(self) -> None:
         """Stop selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Stopping {self.selected_env.name}...")
+        
+        self.app.notify(f"Stopping {self.selected_env.name}...", timeout=2)
+        self.run_worker(self._stop_environment(self.selected_env), exclusive=True)
+    
+    async def _stop_environment(self, env: Environment) -> None:
+        """Worker to stop environment"""
+        try:
+            success, output = await asyncio.to_thread(
+                self.docker_service.stop_container,
+                str(env.path)
+            )
+            
+            if success:
+                # Update status
+                env.refresh_status(self.docker_service)
+                self.refresh_table()
+                self.update_status_bar()
+                self.app.notify(f"✓ Stopped {env.name}", severity="information")
+            else:
+                error_line = output.split('\n')[0] if output else "Unknown error"
+                self.app.notify(f"✗ Failed to stop {env.name}: {error_line}", severity="error", timeout=5)
+        
+        except DockerError as e:
+            self.app.notify(f"✗ Error stopping {env.name}: {e}", severity="error")
+        except Exception as e:
+            self.app.notify(f"✗ Unexpected error: {e}", severity="error")
     
     def action_restart_environment(self) -> None:
         """Restart selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Restarting {self.selected_env.name}...")
+        
+        self.app.notify(f"Restarting {self.selected_env.name}...", timeout=2)
+        self.run_worker(self._restart_environment(self.selected_env), exclusive=True)
+    
+    async def _restart_environment(self, env: Environment) -> None:
+        """Worker to restart environment"""
+        try:
+            success, output = await asyncio.to_thread(
+                self.docker_service.restart_container,
+                str(env.path)
+            )
+            
+            if success:
+                # Update status
+                env.refresh_status(self.docker_service)
+                self.refresh_table()
+                self.update_status_bar()
+                self.app.notify(f"✓ Restarted {env.name}", severity="information")
+            else:
+                error_line = output.split('\n')[0] if output else "Unknown error"
+                self.app.notify(f"✗ Failed to restart {env.name}: {error_line}", severity="error", timeout=5)
+        
+        except DockerError as e:
+            self.app.notify(f"✗ Error restarting {env.name}: {e}", severity="error")
+        except Exception as e:
+            self.app.notify(f"✗ Unexpected error: {e}", severity="error")
     
     def action_build_environment(self) -> None:
         """Build selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Building {self.selected_env.name}...")
+        
+        self.app.notify(f"Building {self.selected_env.name}... (this may take a while)", timeout=3)
+        self.run_worker(self._build_environment(self.selected_env), exclusive=True)
+    
+    async def _build_environment(self, env: Environment) -> None:
+        """Worker to build environment"""
+        try:
+            success, output = await asyncio.to_thread(
+                self.docker_service.build_container,
+                str(env.path)
+            )
+            
+            if success:
+                self.app.notify(f"✓ Built {env.name}", severity="information")
+            else:
+                error_line = output.split('\n')[0] if output else "Unknown error"
+                self.app.notify(f"✗ Failed to build {env.name}: {error_line}", severity="error", timeout=5)
+        
+        except DockerError as e:
+            self.app.notify(f"✗ Error building {env.name}: {e}", severity="error")
+        except Exception as e:
+            self.app.notify(f"✗ Unexpected error: {e}", severity="error")
     
     def action_view_logs(self) -> None:
         """View logs for selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Viewing logs for {self.selected_env.name}...")
+        
+        # Check if container is running
+        if not self.selected_env.is_running:
+            self.app.notify(f"{self.selected_env.name} is not running", severity="warning")
+            return
+        
+        from envman.screens.logs import LogsScreen
+        
+        logs_screen = LogsScreen(
+            environment=self.selected_env,
+            docker_service=self.docker_service
+        )
+        
+        self.app.push_screen(logs_screen)
     
     def action_inspect_environment(self) -> None:
         """Inspect selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Inspecting {self.selected_env.name}...")
+        
+        # Check if container exists
+        if self.selected_env.status == "unknown":
+            self.app.notify(f"{self.selected_env.name} container not found", severity="warning")
+            return
+        
+        from envman.screens.inspect import InspectScreen
+        
+        inspect_screen = InspectScreen(
+            environment=self.selected_env,
+            docker_service=self.docker_service
+        )
+        
+        self.app.push_screen(inspect_screen)
     
     def action_configure_environment(self) -> None:
         """Configure selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Configuring {self.selected_env.name}...")
+        
+        from envman.screens.config import ConfigScreen
+        
+        config_screen = ConfigScreen(environment=self.selected_env)
+        
+        # Refresh when config screen closes (in case changes were made)
+        def on_config_close(result) -> None:
+            self.action_refresh()
+        
+        self.app.push_screen(config_screen, on_config_close)
     
     def action_delete_environment(self) -> None:
         """Delete selected environment"""
         if not self.selected_env:
             self.app.notify("No environment selected", severity="warning")
             return
-        self.app.notify(f"Delete {self.selected_env.name} (not yet implemented)")
+        
+        from envman.screens.delete import DeleteEnvironmentScreen
+        
+        # Capture the environment name for the closure
+        env_name = self.selected_env.name
+        
+        delete_screen = DeleteEnvironmentScreen(
+            environment=self.selected_env,
+            docker_service=self.docker_service,
+            discovery_service=self.discovery_service
+        )
+        
+        # Refresh environment list when delete screen closes
+        def on_delete_close(deleted: bool) -> None:
+            if deleted:
+                # Remove from list and refresh
+                self.environments = [e for e in self.environments if e.name != env_name]
+                self.selected_env = None
+                self.refresh_table()
+                self.update_status_bar()
+            else:
+                # Just refresh status in case container was stopped
+                self.action_refresh()
+        
+        self.app.push_screen(delete_screen, on_delete_close)
     
     def action_refresh(self) -> None:
         """Refresh environment list"""
-        self.app.notify("Refreshing...")
-        # This will be implemented to reload from discovery service
+        self.app.notify("Refreshing...", timeout=1)
+        self.run_worker(self._refresh_environments(), exclusive=True)
+    
+    async def _refresh_environments(self) -> None:
+        """Worker to refresh all environments"""
+        try:
+            # Refresh status for all environments
+            for env in self.environments:
+                await asyncio.to_thread(env.refresh_status, self.docker_service)
+            
+            # Update UI
+            self.refresh_table()
+            self.update_status_bar()
+            self.app.notify("✓ Refreshed", severity="information", timeout=2)
+        
+        except Exception as e:
+            self.app.notify(f"✗ Error refreshing: {e}", severity="error")
     
     def action_quit(self) -> None:
         """Quit the application"""

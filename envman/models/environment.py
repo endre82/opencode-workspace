@@ -102,6 +102,12 @@ class Environment:
         from envman.utils.constants import STATUS_ICONS
         return STATUS_ICONS.get(self.status, "⚪")
     
+    def refresh_status(self, docker_service) -> None:
+        """Refresh the environment status from Docker"""
+        from envman.services.docker import DockerService
+        if isinstance(docker_service, DockerService):
+            self.status = docker_service.get_container_status(self.container_name)
+    
     def __str__(self) -> str:
         return f"{self.name} ({self.status})"
     
