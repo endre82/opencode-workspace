@@ -48,6 +48,9 @@ class CreationWizard(Screen):
         
         # Initialize config with defaults
         self._initialize_defaults()
+        
+        # Set context early so it's available during compose()
+        set_context(screen="CreationWizard", step=self.current_step)
     
     def _initialize_defaults(self) -> None:
         """Initialize configuration with default values"""
@@ -68,9 +71,11 @@ class CreationWizard(Screen):
             'mount_global_config': False,
             'mount_project_config': False,
             'mount_opencode_env_config': True,
+            'mount_worktree': True,
             'global_config': '../shared/config/.opencode',
             'project_config': './opencode_project_config',
             'opencode_env_config': './opencode_config',
+            'worktree_dir': './worktree',
             'server_port': str(next_port),
             'server_username': 'opencode',
             'server_password': self.creation_service.generate_random_password(),
@@ -100,7 +105,6 @@ class CreationWizard(Screen):
     
     def on_mount(self) -> None:
         """Setup when wizard is mounted"""
-        set_context(screen="CreationWizard", step=self.current_step)
         self.update_progress()
         self.update_navigation()
         self.render_current_step()  # Populate first step after elements exist
@@ -196,6 +200,16 @@ class CreationWizard(Screen):
                 value=self.config['opencode_env_config'],
                 placeholder="./opencode_config",
                 id="input-env-path"
+            ),
+            # WORKTREE_DIR
+            Horizontal(
+                Label("\nMount WORKTREE_DIR (git worktrees accessible to host VSCode):"),
+                Switch(value=self.config['mount_worktree'], id="switch-worktree"),
+            ),
+            Input(
+                value=self.config['worktree_dir'],
+                placeholder="./worktree",
+                id="input-worktree-path"
             ),
         )
     
@@ -348,6 +362,8 @@ class CreationWizard(Screen):
             self.config['global_config'] = self.query_one("#input-global-path", Input).value.strip()
             self.config['project_config'] = self.query_one("#input-project-path", Input).value.strip()
             self.config['opencode_env_config'] = self.query_one("#input-env-path", Input).value.strip()
+            self.config['mount_worktree'] = self.query_one("#switch-worktree", Switch).value
+            self.config['worktree_dir'] = self.query_one("#input-worktree-path", Input).value.strip()
         
         elif self.current_step == 4:
             # Convert server_port to integer

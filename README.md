@@ -152,6 +152,31 @@ pip install --user -r requirements.txt
 ./scripts/manage-environments.sh status
 ```
 
+## Exception Logging System
+
+The TUI includes a comprehensive exception logging system that automatically captures all uncaught exceptions with full context. This enables AI agents to debug and fix issues with complete information.
+
+### Log File Location
+```
+~/.local/share/opencode-workspace/logs/exceptions.log
+```
+
+### Key Features
+- **Automatic Capture**: Global exception hook catches all uncaught exceptions
+- **Rich Context**: Includes screen, step, user action, environment name
+- **Full Stack Traces**: Multi-level stack traces with file paths and line numbers
+- **System Information**: Python version, platform, Docker status
+- **JSON Format**: Single-line JSON for easy parsing by AI
+- **Log Rotation**: 10MB max per file, keeps 5 backup files
+
+### Using the Exception Logger
+When reporting issues, simply provide the latest JSON entry from the log file:
+```bash
+cat ~/.local/share/opencode-workspace/logs/exceptions.log | tail -1 | python3 -m json.tool
+```
+
+This eliminates the need for back-and-forth questions about error messages, stack traces, and system environment details.
+
 ## Traditional Setup (Still Valid)
 
 1. **Setup shared network:**

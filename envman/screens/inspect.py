@@ -69,6 +69,9 @@ class InspectScreen(Screen):
         self.docker_service = docker_service
         self.inspection_data: dict | None = None
         self.stats_data: dict | None = None
+        
+        # Set context early so it's available during compose()
+        set_context(screen="InspectEnvironment", environment_name=self.environment.name)
     
     def compose(self) -> ComposeResult:
         """Compose the inspection UI"""
@@ -83,7 +86,6 @@ class InspectScreen(Screen):
     
     def on_mount(self) -> None:
         """Setup the inspector when mounted"""
-        set_context(screen="InspectEnvironment", environment_name=self.environment.name)
         self.load_inspection_data()
     
     def load_inspection_data(self) -> None:

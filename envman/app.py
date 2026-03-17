@@ -150,6 +150,20 @@ class EnvironmentManagerApp(App):
         self.discovery_service: DiscoveryService | None = None
         self.docker_service: DockerService | None = None
     
+    def on_error(self, event) -> None:
+        """Handle Textual app-level errors and log them."""
+        from envman.utils.exception_logger import log_textual_exception
+        
+        # Log the exception with app-level context
+        log_textual_exception(
+            event.exception,
+            context={"screen": "App", "app_state": "error_handler"}
+        )
+        
+        # Allow default error handling to continue
+        # This ensures the error is still displayed to the user
+        return super().on_error(event)
+    
     def on_mount(self) -> None:
         """Initialize services and load environments"""
         try:

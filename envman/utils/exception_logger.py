@@ -251,6 +251,41 @@ def _exception_hook(exc_type: type, exc_value: BaseException, exc_tb: Any) -> No
     sys.__excepthook__(exc_type, exc_value, exc_tb)
 
 
+def log_textual_exception(exc: BaseException, context: dict[str, Any] | None = None) -> None:
+    """Log exceptions caught by Textual's internal handlers.
+    
+    Call this from Textual's on_error() method to log exceptions that
+    Textual catches internally (e.g., during compose, mount, etc.)
+    
+    Args:
+        exc: The exception instance
+        context: Optional additional context to include
+    
+    Example:
+        def on_error(self, event):
+            from envman.utils.exception_logger import log_textual_exception
+            log_textual_exception(event.exception, context={"screen": "MyScreen"})
+            return super().on_error(event)
+    """
+    # Extract exception info
+    exc_type = type(exc)
+    exc_tb = exc.__traceback__
+    
+    # Temporarily update context if provided
+    old_context = None
+    if context:
+        old_context = get_context()
+        set_context(**context)
+    
+    # Log the exception
+    _write_exception(exc_type, exc, exc_tb)
+    
+    # Restore old context if we changed it
+    if context and old_context:
+        clear_context()
+        set_context(**old_context)
+
+
 def install_global_hook() -> None:
     """Install global exception hook to capture all uncaught exceptions.
     

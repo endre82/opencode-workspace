@@ -101,6 +101,9 @@ class DeleteEnvironmentScreen(Screen):
         self.delete_workspace = False
         self.delete_config = False
         self.is_deleting = False
+        
+        # Set context early so it's available during compose()
+        set_context(screen="DeleteEnvironment", environment_name=self.environment.name)
     
     def compose(self) -> ComposeResult:
         """Compose the deletion dialog"""
@@ -165,7 +168,6 @@ class DeleteEnvironmentScreen(Screen):
     
     def on_mount(self) -> None:
         """Focus the confirmation input on mount"""
-        set_context(screen="DeleteEnvironment", environment_name=self.environment.name)
         self.query_one("#confirmation-input", Input).focus()
     
     def on_input_changed(self, event: Input.Changed) -> None:

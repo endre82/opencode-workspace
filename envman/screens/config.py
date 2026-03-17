@@ -16,6 +16,13 @@ from envman.models.environment import Environment
 from envman.services.config import ConfigService
 from envman.utils.exceptions import ConfigurationError
 from envman.utils.exception_logger import set_context
+from envman.screens.modals.copy_command import CopyCommandModal
+
+try:
+    import pyperclip
+    CLIPBOARD_AVAILABLE = True
+except ImportError:
+    CLIPBOARD_AVAILABLE = False
 
 
 class ConfigScreen(Screen):
@@ -106,6 +113,7 @@ class ConfigScreen(Screen):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+r", "reset", "Reset"),
         Binding("ctrl+b", "backup", "Backup"),
+        Binding("ctrl+k", "copy_command", "Copy Command"),
     ]
     
     def __init__(self, environment: Environment):
@@ -114,6 +122,9 @@ class ConfigScreen(Screen):
         self.config_service = ConfigService()
         self.original_config: Dict[str, Any] = {}
         self.has_changes = False
+        
+        # Set context early so it's available during compose()
+        set_context(screen="ConfigEditor", environment_name=self.environment.name)
     
     def compose(self) -> ComposeResult:
         """Compose the config editor UI"""
@@ -133,13 +144,14 @@ class ConfigScreen(Screen):
             
             # Form container
             with ScrollableContainer(id="form-container"):
-                yield self._create_form()
+                yield from self._create_form()
             
             # Button bar
             with Horizontal(id="button-bar"):
                 yield Button("Save", variant="primary", id="btn-save")
                 yield Button("Reset", variant="default", id="btn-reset")
                 yield Button("Backup", variant="default", id="btn-backup")
+                yield Button("Copy Command", variant="success", id="btn-copy-command")
                 yield Button("Cancel", variant="default", id="btn-cancel")
         
         yield Footer()
@@ -329,7 +341,6 @@ class ConfigScreen(Screen):
     
     async def on_mount(self) -> None:
         """Load configuration when screen mounts"""
-        set_context(screen="ConfigEditor", environment_name=self.environment.name)
         await self._load_configuration()
     
     async def _load_configuration(self) -> None:
@@ -638,6 +649,47 @@ class ConfigScreen(Screen):
         else:
             self.notify("No configuration file to backup", severity="warning")
     
+    def action_copy_command(self) -> None:
+        """Show copy command modal (Ctrl+K)"""
+        # Get current form values to generate command
+        config = self._collect_form_data()
+        
+        # Check if server is enabled
+        server_enabled = config.get("OPENCODE_SERVER_ENABLED", "false") == "true"
+        if not server_enabled:
+            self.notify("Server is not enabled. Enable it first to get connection command.", severity="warning")
+            return
+        
+        # Get server configuration
+        server_port = config.get("OPENCODE_SERVER_PORT", "")
+        if not server_port:
+            self.notify("Server port is not configured. Set a port first.", severity="warning")
+            return
+        
+        server_host = config.get("OPENCODE_SERVER_HOST", "0.0.0.0")
+        # Convert 0.0.0.0 to localhost for the command
+        host = "localhost" if server_host == "0.0.0.0" else server_host
+        server_url = f"http://{host}:{server_port}"
+        
+        server_username = config.get("OPENCODE_SERVER_USERNAME", "opencode")
+        server_password = config.get("OPENCODE_SERVER_PASSWORD", "")
+        
+        # Build connection command
+        command = (
+            f"OPENCODE_SERVER_USERNAME={server_username} "
+            f"OPENCODE_SERVER_PASSWORD={server_password} "
+            f"opencode attach {server_url}"
+        )
+        
+        # Show modal with command
+        modal = CopyCommandModal(
+            command=command,
+            title="Remote Connection Command",
+            message="Use this command from your local machine to connect to this OpenCode server:"
+        )
+        self.app.push_screen(modal)
+    
+    
     def action_close(self) -> None:
         """Close the screen (Escape)"""
         if self.has_changes:
@@ -655,6 +707,8 @@ class ConfigScreen(Screen):
             await self.action_reset()
         elif button_id == "btn-backup":
             await self.action_backup()
+        elif button_id == "btn-copy-command":
+            self.action_copy_command()
         elif button_id == "btn-cancel":
             self.action_close()
     

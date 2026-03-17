@@ -93,6 +93,9 @@ class LogsScreen(Screen):
         self.follow_task: asyncio.Task | None = None
         self.current_filter = "ALL"
         self.current_search = ""
+        
+        # Set context early so it's available during compose()
+        set_context(screen="LogsViewer", environment_name=self.environment.name)
     
     def compose(self) -> ComposeResult:
         """Compose the logs viewer UI"""
@@ -124,7 +127,6 @@ class LogsScreen(Screen):
     
     def on_mount(self) -> None:
         """Setup the logs viewer when mounted"""
-        set_context(screen="LogsViewer", environment_name=self.environment.name)
         self.load_initial_logs()
         self.update_status()
     

@@ -48,6 +48,9 @@ class Dashboard(Screen):
         self.discovery_service = discovery_service
         self.workspace_root = workspace_root
         self.selected_env: Environment | None = None
+        
+        # Set context early so it's available during compose()
+        set_context(screen="Dashboard")
     
     def compose(self) -> ComposeResult:
         """Compose the dashboard UI"""
@@ -62,8 +65,6 @@ class Dashboard(Screen):
     
     def on_mount(self) -> None:
         """Setup the table when mounted"""
-        set_context(screen="Dashboard")
-        
         table = self.query_one("#env-table", DataTable)
         table.cursor_type = "row"
         table.zebra_stripes = True

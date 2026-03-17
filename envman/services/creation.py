@@ -153,6 +153,7 @@ class CreationService:
             'GLOBAL_CONFIG=../shared/config/.opencode': f'GLOBAL_CONFIG={config.get("global_config", "../shared/config/.opencode")}',
             'PROJECT_CONFIG=./opencode_project_config': f'PROJECT_CONFIG={config.get("project_config", "./opencode_project_config")}',
             'OPENCODE_ENV_CONFIG=./opencode_config': f'OPENCODE_ENV_CONFIG={config.get("opencode_env_config", "./opencode_config")}',
+            'WORKTREE_DIR=./worktree': f'WORKTREE_DIR={config.get("worktree_dir", "./worktree")}',
             'MOUNT_GLOBAL_CONFIG=false': f'MOUNT_GLOBAL_CONFIG={str(config.get("mount_global_config", False)).lower()}',
             'MOUNT_PROJECT_CONFIG=false': f'MOUNT_PROJECT_CONFIG={str(config.get("mount_project_config", False)).lower()}',
             'MOUNT_OPENCODE_ENV_CONFIG=true': f'MOUNT_OPENCODE_ENV_CONFIG={str(config.get("mount_opencode_env_config", True)).lower()}',
@@ -190,6 +191,12 @@ class CreationService:
                 '      - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw'
             )
         
+        if config.get('mount_worktree', False):
+            content = content.replace(
+                '      # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw',
+                '      - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw'
+            )
+        
         with open(target_path, 'w') as f:
             f.write(content)
     
@@ -212,6 +219,7 @@ class CreationService:
         lines.append(f"  {'✓' if config.get('mount_global_config') else '✗'} GLOBAL_CONFIG")
         lines.append(f"  {'✓' if config.get('mount_project_config') else '✗'} PROJECT_CONFIG")
         lines.append(f"  {'✓' if config.get('mount_opencode_env_config', True) else '✗'} OPENCODE_ENV_CONFIG")
+        lines.append(f"  {'✓' if config.get('mount_worktree') else '✗'} WORKTREE_DIR")
         lines.append("")
         lines.append("Server Configuration:")
         lines.append(f"  Port:     {config['server_port']}")
