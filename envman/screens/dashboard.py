@@ -1,6 +1,7 @@
 """Dashboard screen - main environment list view"""
 
 import asyncio
+import webbrowser
 from pathlib import Path
 from textual.app import ComposeResult
 from textual.screen import Screen
@@ -9,6 +10,13 @@ from textual.containers import Container, Vertical
 from textual.binding import Binding
 from textual.worker import Worker, WorkerState
 from rich.text import Text
+from textual.message import Message
+
+try:
+    import pyperclip
+    CLIPBOARD_AVAILABLE = True
+except ImportError:
+    CLIPBOARD_AVAILABLE = False
 
 from envman.models.environment import Environment
 from envman.services.docker import DockerService
@@ -21,8 +29,17 @@ from typing import List
 class Dashboard(Screen):
     """Main dashboard screen showing all environments"""
     
-    BINDINGS = [
+    # Non-environment-specific bindings (always visible)
+    GENERAL_BINDINGS = [
         Binding("n", "new_environment", "New"),
+        Binding("R", "refresh", "Refresh"),
+        Binding("q", "quit", "Quit"),
+    ]
+    
+    # Environment-specific bindings (only visible when env selected)
+    ENV_BINDINGS = [
+        Binding("enter", "select_environment", "Select"),
+        Binding("space", "select_environment", "Select"),
         Binding("s", "start_environment", "Start"),
         Binding("x", "stop_environment", "Stop"),
         Binding("r", "restart_environment", "Restart"),
@@ -31,9 +48,12 @@ class Dashboard(Screen):
         Binding("i", "inspect_environment", "Inspect"),
         Binding("c", "configure_environment", "Configure"),
         Binding("d", "delete_environment", "Delete"),
-        Binding("R", "refresh", "Refresh"),
-        Binding("q", "quit", "Quit"),
+        Binding("w", "open_opencode_web", "OpenCode Web"),
+        Binding("v", "open_vscode_web", "VSCode Web"),
     ]
+    
+    # Combined for Textual (initially only general bindings)
+    BINDINGS = GENERAL_BINDINGS.copy()
     
     def __init__(
         self, 
@@ -69,7 +89,8 @@ class Dashboard(Screen):
         table.cursor_type = "row"
         table.zebra_stripes = True
         
-        # Add columns
+        # Add columns - selection column first
+        table.add_column("", width=3)  # Selection indicator column
         table.add_column("Name", width=30)
         table.add_column("Status", width=15)
         table.add_column("Port", width=8)
@@ -87,6 +108,9 @@ class Dashboard(Screen):
         table.clear()
         
         for env in self.environments:
+            # Selection indicator
+            selection_indicator = "✓" if self.selected_env and env.name == self.selected_env.name else ""
+            
             # Format status with icon
             status_text = Text()
             status_text.append(env.status_icon + " ")
@@ -99,6 +123,7 @@ class Dashboard(Screen):
             url = env.server_url if env.server_url else "N/A"
             
             table.add_row(
+                selection_indicator,
                 env.name,
                 status_text,
                 port_str,
@@ -117,10 +142,55 @@ class Dashboard(Screen):
         status_bar = self.query_one("#status-bar", Static)
         status_bar.update(status_text)
     
+    def update_bindings(self) -> None:
+        """Update footer bindings based on selection state"""
+        if self.selected_env:
+            # Show general bindings + separator + env-specific bindings
+            self.BINDINGS = self.GENERAL_BINDINGS.copy() + [
+                Binding("", "", "─ Environment Actions ─", show=False)  # Visual separator
+            ] + self.ENV_BINDINGS
+        else:
+            # Show only general bindings
+            self.BINDINGS = self.GENERAL_BINDINGS.copy()
+        
+        # Refresh the footer by calling refresh on it
+        try:
+            footer = self.query_one(Footer)
+            footer.refresh()
+        except Exception:
+            pass
+    
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle row selection"""
-        env_name = event.row_key
-        self.selected_env = next((e for e in self.environments if e.name == env_name), None)
+        """Handle row focus (but don't auto-select)"""
+        # Just update focus tracking; selection only happens via action_select_environment
+        pass
+    
+    def action_select_environment(self) -> None:
+        """Explicitly select the focused environment"""
+        table = self.query_one("#env-table", DataTable)
+        
+        # Get the focused row
+        try:
+            cursor_row = table.cursor_row
+            if cursor_row is not None:
+                # Get row key from cursor position
+                rows = list(table.rows)
+                if cursor_row < len(rows):
+                    # The row_key is the environment name (stored when adding rows)
+                    # We need to find which environment is at this cursor position
+                    # Iterate through environments to match with cursor position
+                    if cursor_row < len(self.environments):
+                        self.selected_env = self.environments[cursor_row]
+                        
+                        # Refresh table to show checkmark
+                        self.refresh_table()
+                        
+                        # Update footer bindings to show env-specific actions
+                        self.update_bindings()
+                        
+                        self.app.notify(f"Selected: {self.selected_env.name}", severity="information", timeout=2)
+        except Exception:
+            pass
     
     def action_new_environment(self) -> None:
         """Create new environment"""
@@ -369,6 +439,68 @@ class Dashboard(Screen):
         
         except Exception as e:
             self.app.notify(f"✗ Error refreshing: {e}", severity="error")
+    
+    def action_open_opencode_web(self) -> None:
+        """Open OpenCode web interface in browser"""
+        if not self.selected_env:
+            self.notify("No environment selected", severity="warning")
+            return
+        
+        if not self.selected_env.is_running:
+            self.notify("Environment is not running", severity="warning")
+            return
+        
+        if not self.selected_env.server_url:
+            self.notify("Server URL not available", severity="error")
+            return
+        
+        # Copy password to clipboard
+        if CLIPBOARD_AVAILABLE:
+            try:
+                pyperclip.copy(self.selected_env.server_password)
+                self.notify("Password copied to clipboard", severity="success", timeout=2)
+            except Exception as e:
+                self.notify(f"Failed to copy password: {e}", severity="error")
+        else:
+            self.notify("Clipboard not available - password not copied", severity="warning")
+        
+        # Open browser
+        try:
+            webbrowser.open(self.selected_env.server_url)
+            self.notify(f"Opening OpenCode at {self.selected_env.server_url}", severity="information")
+        except Exception as e:
+            self.notify(f"Failed to open browser: {e}", severity="error")
+    
+    def action_open_vscode_web(self) -> None:
+        """Open VSCode web interface in browser"""
+        if not self.selected_env:
+            self.notify("No environment selected", severity="warning")
+            return
+        
+        if not self.selected_env.is_running:
+            self.notify("Environment is not running", severity="warning")
+            return
+        
+        if not self.selected_env.code_server_url:
+            self.notify("VSCode server URL not available", severity="error")
+            return
+        
+        # Copy password to clipboard
+        if CLIPBOARD_AVAILABLE:
+            try:
+                pyperclip.copy(self.selected_env.server_password)
+                self.notify("Password copied to clipboard", severity="success", timeout=2)
+            except Exception as e:
+                self.notify(f"Failed to copy password: {e}", severity="error")
+        else:
+            self.notify("Clipboard not available - password not copied", severity="warning")
+        
+        # Open browser
+        try:
+            webbrowser.open(self.selected_env.code_server_url)
+            self.notify(f"Opening VSCode at {self.selected_env.code_server_url}", severity="information")
+        except Exception as e:
+            self.notify(f"Failed to open browser: {e}", severity="error")
     
     def action_quit(self) -> None:
         """Quit the application"""
