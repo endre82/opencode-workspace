@@ -24,6 +24,7 @@ services:
       # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
       # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw
       # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
+      # - ${SHARED_AUTH_CONFIG}:/home/dev/.local/share/opencode/auth.json:ro
     ports:
       - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
       - "${CODE_SERVER_PORT}:${CODE_SERVER_PORT}"

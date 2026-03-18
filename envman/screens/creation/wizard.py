@@ -72,10 +72,12 @@ class CreationWizard(Screen):
             'mount_project_config': False,
             'mount_opencode_env_config': True,
             'mount_worktree': True,
+            'mount_shared_auth': True,
             'global_config': '../shared/config/.opencode',
             'project_config': './opencode_project_config',
             'opencode_env_config': './opencode_config',
             'worktree_dir': './worktree',
+            'shared_auth_config': '../../shared/auth/auth.json',
             'server_port': str(next_port),
             'server_username': 'opencode',
             'server_password': self.creation_service.generate_random_password(),
@@ -211,6 +213,12 @@ class CreationWizard(Screen):
                 placeholder="./worktree",
                 id="input-worktree-path"
             ),
+            # SHARED_AUTH_CONFIG
+            Horizontal(
+                Label("\nMount SHARED_AUTH (shared provider credentials):"),
+                Switch(value=self.config['mount_shared_auth'], id="switch-shared-auth"),
+            ),
+            Static("Path: ../../shared/auth/auth.json (fixed)", id="shared-auth-help"),
         )
     
     def _render_step_4(self) -> Container:
@@ -364,6 +372,7 @@ class CreationWizard(Screen):
             self.config['opencode_env_config'] = self.query_one("#input-env-path", Input).value.strip()
             self.config['mount_worktree'] = self.query_one("#switch-worktree", Switch).value
             self.config['worktree_dir'] = self.query_one("#input-worktree-path", Input).value.strip()
+            self.config['mount_shared_auth'] = self.query_one("#switch-shared-auth", Switch).value
         
         elif self.current_step == 4:
             # Convert server_port to integer

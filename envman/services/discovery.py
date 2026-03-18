@@ -126,11 +126,13 @@ class DiscoveryService:
         env.project_config = cs.get_str_value(config, "PROJECT_CONFIG", "")
         env.opencode_env_config = cs.get_str_value(config, "OPENCODE_ENV_CONFIG", "./opencode_config")
         env.worktree_dir = cs.get_str_value(config, "WORKTREE_DIR", "./worktree")
+        env.shared_auth_config = cs.get_str_value(config, "SHARED_AUTH_CONFIG", "../../shared/auth/auth.json")
         
         # Volume mount flags
         env.mount_global_config = cs.get_bool_value(config, "MOUNT_GLOBAL_CONFIG", False)
         env.mount_project_config = cs.get_bool_value(config, "MOUNT_PROJECT_CONFIG", False)
         env.mount_opencode_env_config = cs.get_bool_value(config, "MOUNT_OPENCODE_ENV_CONFIG", True)
+        env.mount_shared_auth = cs.get_bool_value(config, "MOUNT_SHARED_AUTH", True)
         
         # Resource limits
         env.memory_limit = cs.get_str_value(config, "MEMORY_LIMIT", "")

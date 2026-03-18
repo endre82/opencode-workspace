@@ -98,6 +98,16 @@ MOUNT_OPENCODE_ENV_CONFIG="true"
 read -p "Enter OPENCODE_ENV_CONFIG path (default: ./opencode_config): " OPENCODE_ENV_CONFIG
 OPENCODE_ENV_CONFIG=${OPENCODE_ENV_CONFIG:-./opencode_config}
 
+# Prompt for SHARED_AUTH mounting
+read -p "Mount SHARED_AUTH (shared provider credentials)? (y/n) [default: y]: " MOUNT_SHARED
+MOUNT_SHARED=${MOUNT_SHARED:-y}
+if [ "$MOUNT_SHARED" = "y" ] || [ "$MOUNT_SHARED" = "Y" ]; then
+    MOUNT_SHARED_AUTH="true"
+else
+    MOUNT_SHARED_AUTH="false"
+fi
+SHARED_AUTH_CONFIG="../../shared/auth/auth.json"
+
 echo ""
 
 # === STEP 4: SERVER CONFIGURATION ===
@@ -186,6 +196,7 @@ $SED_INPLACE "s|OPENCODE_ENV_CONFIG=.*|OPENCODE_ENV_CONFIG=${OPENCODE_ENV_CONFIG
 $SED_INPLACE "s/MOUNT_GLOBAL_CONFIG=.*/MOUNT_GLOBAL_CONFIG=${MOUNT_GLOBAL_CONFIG}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s/MOUNT_PROJECT_CONFIG=.*/MOUNT_PROJECT_CONFIG=${MOUNT_PROJECT_CONFIG}/" "${ENV_DIR}/.env"
 $SED_INPLACE "s/MOUNT_OPENCODE_ENV_CONFIG=.*/MOUNT_OPENCODE_ENV_CONFIG=${MOUNT_OPENCODE_ENV_CONFIG}/" "${ENV_DIR}/.env"
+$SED_INPLACE "s/MOUNT_SHARED_AUTH=.*/MOUNT_SHARED_AUTH=${MOUNT_SHARED_AUTH}/" "${ENV_DIR}/.env"
 
 # Uncomment volumes in docker-compose.yml based on user selection
 if [ "$MOUNT_GLOBAL_CONFIG" = "true" ]; then
@@ -194,6 +205,10 @@ fi
 
 if [ "$MOUNT_PROJECT_CONFIG" = "true" ]; then
     $SED_INPLACE 's|# - \${PROJECT_CONFIG}:|      - ${PROJECT_CONFIG}:|' "${ENV_DIR}/docker-compose.yml"
+fi
+
+if [ "$MOUNT_SHARED_AUTH" = "true" ]; then
+    $SED_INPLACE 's|# - \${SHARED_AUTH_CONFIG}:|      - ${SHARED_AUTH_CONFIG}:|' "${ENV_DIR}/docker-compose.yml"
 fi
 
 echo ""
@@ -226,6 +241,12 @@ else
 fi
 echo "   ✅ OPENCODE_ENV_CONFIG → /home/dev/.local/share/opencode"
 echo "      Path: ${OPENCODE_ENV_CONFIG}"
+if [ "$MOUNT_SHARED_AUTH" = "true" ]; then
+    echo "   ✅ SHARED_AUTH → /home/dev/.local/share/opencode/auth.json"
+    echo "      Path: ${SHARED_AUTH_CONFIG}"
+else
+    echo "   ❌ SHARED_AUTH (disabled)"
+fi
 echo ""
 echo "🖥️  Server Configuration:"
 echo "   OpenCode Server Port: ${SERVER_PORT}"

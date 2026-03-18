@@ -270,7 +270,43 @@ Each environment has:
 
 - `shared/config/` - Shared OpenCode configuration (read-write)
 - `shared/models/` - Shared AI models (read-only)
+- `shared/auth/` - **Shared provider credentials (auth.json)** - Share API keys across all environments
 - `opencode-network` - Shared Docker network for inter-container communication
+
+### Shared Provider Credentials
+
+Provider connections (GitHub Copilot, DeepSeek, etc.) can be shared across environments while keeping sessions isolated:
+
+**Setup:**
+1. Place your `auth.json` in `shared/auth/auth.json`
+2. Enable in environment `.env`:
+   ```bash
+   MOUNT_SHARED_AUTH=true
+   SHARED_AUTH_CONFIG=../../shared/auth/auth.json
+   ```
+3. The auth file is mounted read-only to `/home/dev/.local/share/opencode/auth.json`
+
+**Benefits:**
+- **Shared credentials**: All environments use the same provider authentication
+- **Isolated sessions**: Each environment maintains its own session data, logs, and worktrees
+- **Single source of truth**: Update credentials once, apply to all environments
+- **Read-only mount**: Prevents accidental credential modification
+
+**Example auth.json structure:**
+```json
+{
+  "github-copilot": {
+    "type": "oauth",
+    "refresh": "gho_...",
+    "access": "gho_...",
+    "expires": 0
+  },
+  "deepseek": {
+    "type": "api",
+    "key": "sk-..."
+  }
+}
+```
 
 ## Volume Mounts
 
@@ -280,6 +316,7 @@ Each environment mounts:
 - `./opencode_config` → `/home/dev/.local/share/opencode` (read-write, per-environment)
 - `/etc/localtime` → `/etc/localtime` (read-only, time sync)
 - `./worktree` → `/home/dev/.local/share/opencode/worktree` (read-write, optional, for VSCode access to git worktrees)
+- `../../shared/auth/auth.json` → `/home/dev/.local/share/opencode/auth.json` (read-only, optional, shared provider credentials)
 
 ### Git Worktree Integration
 

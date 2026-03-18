@@ -42,11 +42,13 @@ class Environment:
     project_config: str = ""
     opencode_env_config: str = "./opencode_config"
     worktree_dir: str = "./worktree"
+    shared_auth_config: str = "../../shared/auth/auth.json"
     
     # Volume mount flags
     mount_global_config: bool = False
     mount_project_config: bool = False
     mount_opencode_env_config: bool = True
+    mount_shared_auth: bool = True
     
     # Resource limits
     memory_limit: str = ""
