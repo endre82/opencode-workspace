@@ -78,6 +78,9 @@ class CreationWizard(Screen):
             'opencode_env_config': './opencode_config',
             'worktree_dir': './worktree',
             'shared_auth_config': '../../shared/auth/auth.json',
+            'ssh_mode': 'default',
+            'ssh_host_path': str(Path.home() / '.ssh'),
+            'ssh_project_path': './ssh_config',
             'server_port': str(next_port),
             'server_username': 'opencode',
             'server_password': self.creation_service.generate_random_password(),
@@ -175,8 +178,20 @@ class CreationWizard(Screen):
     def _render_step_3(self) -> Container:
         """Render Step 3: Volume Mounts"""
         return Vertical(
-            Static("Configure which configurations to mount:\n"),
+            Static("Configure SSH and volume mounts:\n"),
+            # SSH Configuration (mandatory)
+            Static("SSH Configuration (mandatory):", id="ssh-header"),
+            Horizontal(
+                Label("SSH Mode:"),
+                RadioSet(
+                    RadioButton("Default: Use host ~/.ssh", value=(self.config['ssh_mode'] == 'default')),
+                    RadioButton("Project-Based: Custom ./ssh_config", value=(self.config['ssh_mode'] == 'project')),
+                    id="ssh-mode"
+                ),
+            ),
+            Static("The selected SSH directory will be mounted to /home/dev/.ssh (read-only) in the container.\n", id="ssh-help"),
             # GLOBAL_CONFIG
+            Static("Additional Volume Mounts:\n", id="volume-header"),
             Horizontal(
                 Label("Mount GLOBAL_CONFIG (shared OpenCode config):"),
                 Switch(value=self.config['mount_global_config'], id="switch-global"),
@@ -365,6 +380,13 @@ class CreationWizard(Screen):
             self.config['workspace_dir'] = self.query_one("#input-workspace-path", Input).value.strip()
         
         elif self.current_step == 3:
+            # Save SSH configuration
+            radio = self.query_one("#ssh-mode", RadioSet)
+            self.config['ssh_mode'] = 'default' if radio.pressed_index == 0 else 'project'
+            self.config['ssh_host_path'] = str(Path.home() / '.ssh')
+            self.config['ssh_project_path'] = './ssh_config'
+            
+            # Save volume mount configuration
             self.config['mount_global_config'] = self.query_one("#switch-global", Switch).value
             self.config['mount_project_config'] = self.query_one("#switch-project", Switch).value
             self.config['global_config'] = self.query_one("#input-global-path", Input).value.strip()

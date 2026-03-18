@@ -20,6 +20,8 @@ services:
       - ../../envman:/home/dev/envman:ro
       # Namespace mounts (read-only for safety)
       - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
+      # SSH mount (mandatory - read-only)
+      - ${SSH_CONFIG}:/home/dev/.ssh:ro
       # Optional volumes (uncomment based on MOUNT_* variables in .env)
       # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
       # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw

@@ -139,6 +139,13 @@ class CreationService:
         # Replace template variables
         content = content.replace('{{ENV_NAME}}', env_name)
         
+        # Determine SSH configuration
+        ssh_mode = config.get("ssh_mode", "default")
+        if ssh_mode == "default":
+            ssh_config_path = config.get("ssh_host_path", str(Path.home() / ".ssh"))
+        else:  # project mode
+            ssh_config_path = config.get("ssh_project_path", "./ssh_config")
+        
         # Replace configuration values
         replacements = {
             'USER_ID=1000': f'USER_ID={int(config["user_id"])}',
@@ -159,6 +166,10 @@ class CreationService:
             'MOUNT_PROJECT_CONFIG=false': f'MOUNT_PROJECT_CONFIG={str(config.get("mount_project_config", False)).lower()}',
             'MOUNT_OPENCODE_ENV_CONFIG=true': f'MOUNT_OPENCODE_ENV_CONFIG={str(config.get("mount_opencode_env_config", True)).lower()}',
             'MOUNT_SHARED_AUTH=true': f'MOUNT_SHARED_AUTH={str(config.get("mount_shared_auth", True)).lower()}',
+            'SSH_MODE=default': f'SSH_MODE={ssh_mode}',
+            'SSH_HOST_PATH=/home/endre/.ssh': f'SSH_HOST_PATH={config.get("ssh_host_path", str(Path.home() / ".ssh"))}',
+            'SSH_PROJECT_PATH=./ssh_config': f'SSH_PROJECT_PATH={config.get("ssh_project_path", "./ssh_config")}',
+            'SSH_CONFIG=/home/endre/.ssh': f'SSH_CONFIG={ssh_config_path}',
         }
         
         # Calculate code-server port (server_port + 4000)
@@ -179,6 +190,9 @@ class CreationService:
         
         # Replace template variables
         content = content.replace('{{ENV_NAME}}', env_name)
+        
+        # SSH mount is always active (mandatory) - no conditional handling needed
+        # The template already has it uncommented
         
         # Uncomment volume mounts based on configuration
         if config.get('mount_global_config', False):
@@ -223,12 +237,22 @@ class CreationService:
         lines.append(f"  Type: {config.get('workspace_type', 'Isolated')}")
         lines.append(f"  Path: {config['workspace_dir']}")
         lines.append("")
+        lines.append("SSH Configuration:")
+        ssh_mode = config.get("ssh_mode", "default")
+        if ssh_mode == "default":
+            lines.append(f"  Mode: Default (using host ~/.ssh)")
+            lines.append(f"  Path: {config.get('ssh_host_path', str(Path.home() / '.ssh'))}")
+        else:
+            lines.append(f"  Mode: Project-Based")
+            lines.append(f"  Path: {config.get('ssh_project_path', './ssh_config')}")
+        lines.append("")
         lines.append("Volume Mounts:")
         lines.append(f"  {'✓' if config.get('mount_global_config') else '✗'} GLOBAL_CONFIG")
         lines.append(f"  {'✓' if config.get('mount_project_config') else '✗'} PROJECT_CONFIG")
         lines.append(f"  {'✓' if config.get('mount_opencode_env_config', True) else '✗'} OPENCODE_ENV_CONFIG")
         lines.append(f"  {'✓' if config.get('mount_worktree') else '✗'} WORKTREE_DIR")
         lines.append(f"  {'✓' if config.get('mount_shared_auth', True) else '✗'} SHARED_AUTH (provider credentials)")
+        lines.append(f"  ✓ SSH (mandatory)")
         lines.append("")
         lines.append("Server Configuration:")
         lines.append(f"  Port:     {config['server_port']}")
