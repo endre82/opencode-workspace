@@ -1,7 +1,6 @@
 """Dashboard screen - main environment list view"""
 
 import asyncio
-import webbrowser
 from pathlib import Path
 from textual.app import ComposeResult
 from textual.screen import Screen
@@ -23,6 +22,7 @@ from envman.services.docker import DockerService
 from envman.services.discovery import DiscoveryService
 from envman.utils.exceptions import DockerError
 from envman.utils.exception_logger import set_context
+from envman.utils.browser import open_url
 from typing import List
 
 
@@ -465,7 +465,7 @@ class Dashboard(Screen):
         
         # Open browser
         try:
-            webbrowser.open(self.selected_env.server_url)
+            open_url(self.selected_env.server_url)
             self.notify(f"Opening OpenCode at {self.selected_env.server_url}", severity="information")
         except Exception as e:
             self.notify(f"Failed to open browser: {e}", severity="error")
@@ -496,7 +496,7 @@ class Dashboard(Screen):
         
         # Open browser
         try:
-            webbrowser.open(self.selected_env.code_server_url)
+            open_url(self.selected_env.code_server_url)
             self.notify(f"Opening VSCode at {self.selected_env.code_server_url}", severity="information")
         except Exception as e:
             self.notify(f"Failed to open browser: {e}", severity="error")
