@@ -29,17 +29,13 @@ from typing import List
 class Dashboard(Screen):
     """Main dashboard screen showing all environments"""
     
-    # Non-environment-specific bindings (always visible)
-    GENERAL_BINDINGS = [
+    # All bindings (always active - Textual requires static binding registration)
+    BINDINGS = [
         Binding("enter", "select_environment", "Select"),
         Binding("space", "select_environment", "Select"),
         Binding("n", "new_environment", "New"),
         Binding("R", "refresh", "Refresh"),
         Binding("q", "quit", "Quit"),
-    ]
-    
-    # Environment-specific bindings (only visible when env selected)
-    ENV_BINDINGS = [
         Binding("s", "start_environment", "Start"),
         Binding("x", "stop_environment", "Stop"),
         Binding("r", "restart_environment", "Restart"),
@@ -51,9 +47,6 @@ class Dashboard(Screen):
         Binding("w", "open_opencode_web", "OpenCode Web"),
         Binding("v", "open_vscode_web", "VSCode Web"),
     ]
-    
-    # Combined for Textual (initially only general bindings)
-    BINDINGS = GENERAL_BINDINGS.copy()
     
     def __init__(
         self, 
@@ -144,24 +137,17 @@ class Dashboard(Screen):
     
     def update_bindings(self) -> None:
         """Update footer bindings based on selection state"""
-        if self.selected_env:
-            # Show general bindings + separator + env-specific bindings
-            self.BINDINGS = self.GENERAL_BINDINGS.copy() + [
-                Binding("", "", "─ Environment Actions ─", show=False)  # Visual separator
-            ] + self.ENV_BINDINGS
-        else:
-            # Show only general bindings
-            self.BINDINGS = self.GENERAL_BINDINGS.copy()
-        
-        # Refresh the footer by calling refresh on it
-        try:
-            footer = self.query_one(Footer)
-            footer.refresh()
-        except Exception:
-            pass
+        # Note: All bindings are always active. This method kept for compatibility
+        # but no longer dynamically changes bindings since Textual requires static registration.
+        # Actions already check selection state and show warnings if needed.
+        pass
     
     def _toggle_environment_selection(self, env: Environment) -> None:
         """Toggle selection of the given environment"""
+        # Save current cursor position before refresh
+        table = self.query_one("#env-table", DataTable)
+        saved_cursor_row = table.cursor_row
+        
         if self.selected_env and self.selected_env.name == env.name:
             # Deselect if clicking same environment
             self.selected_env = None
@@ -174,6 +160,17 @@ class Dashboard(Screen):
             self.refresh_table()
             self.update_bindings()
             self.app.notify(f"Selected: {env.name}", severity="information", timeout=2)
+        
+        # Restore cursor position after refresh
+        if saved_cursor_row is not None:
+            try:
+                table.move_cursor(row=saved_cursor_row)
+            except (AttributeError, Exception):
+                # Fallback if move_cursor doesn't exist
+                try:
+                    table.cursor_row = saved_cursor_row
+                except Exception:
+                    pass
     
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle mouse click or row activation"""
