@@ -35,6 +35,7 @@ class Environment:
     server_username: str = "opencode"
     server_password: str = ""
     server_cors: str = ""
+    code_server_port: Optional[int] = None
     
     # Volume configuration
     workspace_dir: str = "./workspace"
@@ -75,6 +76,14 @@ class Environment:
             return ""
         host = "localhost" if self.server_host == "0.0.0.0" else self.server_host
         return f"http://{host}:{self.server_port}"
+    
+    @property
+    def code_server_url(self) -> str:
+        """Code-server (VSCode) URL for connection"""
+        if not self.code_server_port:
+            return ""
+        host = "localhost" if self.server_host == "0.0.0.0" else self.server_host
+        return f"http://{host}:{self.code_server_port}"
     
     @property
     def connection_command(self) -> str:

@@ -31,6 +31,8 @@ class Dashboard(Screen):
     
     # Non-environment-specific bindings (always visible)
     GENERAL_BINDINGS = [
+        Binding("enter", "select_environment", "Select"),
+        Binding("space", "select_environment", "Select"),
         Binding("n", "new_environment", "New"),
         Binding("R", "refresh", "Refresh"),
         Binding("q", "quit", "Quit"),
@@ -38,8 +40,6 @@ class Dashboard(Screen):
     
     # Environment-specific bindings (only visible when env selected)
     ENV_BINDINGS = [
-        Binding("enter", "select_environment", "Select"),
-        Binding("space", "select_environment", "Select"),
         Binding("s", "start_environment", "Start"),
         Binding("x", "stop_environment", "Stop"),
         Binding("r", "restart_environment", "Restart"),
@@ -160,37 +160,39 @@ class Dashboard(Screen):
         except Exception:
             pass
     
+    def _toggle_environment_selection(self, env: Environment) -> None:
+        """Toggle selection of the given environment"""
+        if self.selected_env and self.selected_env.name == env.name:
+            # Deselect if clicking same environment
+            self.selected_env = None
+            self.refresh_table()
+            self.update_bindings()
+            self.app.notify("Deselected", severity="information", timeout=2)
+        else:
+            # Select new environment (or switch from previous)
+            self.selected_env = env
+            self.refresh_table()
+            self.update_bindings()
+            self.app.notify(f"Selected: {env.name}", severity="information", timeout=2)
+    
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle row focus (but don't auto-select)"""
-        # Just update focus tracking; selection only happens via action_select_environment
-        pass
+        """Handle mouse click or row activation"""
+        env_name = event.row_key
+        clicked_env = next((e for e in self.environments if e.name == env_name), None)
+        if clicked_env:
+            self._toggle_environment_selection(clicked_env)
     
     def action_select_environment(self) -> None:
-        """Explicitly select the focused environment"""
+        """Toggle selection of the focused environment (Space/Enter)"""
         table = self.query_one("#env-table", DataTable)
         
-        # Get the focused row
         try:
             cursor_row = table.cursor_row
-            if cursor_row is not None:
-                # Get row key from cursor position
-                rows = list(table.rows)
-                if cursor_row < len(rows):
-                    # The row_key is the environment name (stored when adding rows)
-                    # We need to find which environment is at this cursor position
-                    # Iterate through environments to match with cursor position
-                    if cursor_row < len(self.environments):
-                        self.selected_env = self.environments[cursor_row]
-                        
-                        # Refresh table to show checkmark
-                        self.refresh_table()
-                        
-                        # Update footer bindings to show env-specific actions
-                        self.update_bindings()
-                        
-                        self.app.notify(f"Selected: {self.selected_env.name}", severity="information", timeout=2)
-        except Exception:
-            pass
+            if cursor_row is not None and cursor_row < len(self.environments):
+                focused_env = self.environments[cursor_row]
+                self._toggle_environment_selection(focused_env)
+        except Exception as e:
+            self.app.notify(f"Selection error: {e}", severity="error")
     
     def action_new_environment(self) -> None:
         """Create new environment"""

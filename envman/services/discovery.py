@@ -119,6 +119,7 @@ class DiscoveryService:
         env.server_username = cs.get_str_value(config, "OPENCODE_SERVER_USERNAME", "opencode")
         env.server_password = cs.get_str_value(config, "OPENCODE_SERVER_PASSWORD", "")
         env.server_cors = cs.get_str_value(config, "OPENCODE_SERVER_CORS", "")
+        env.code_server_port = cs.get_int_value(config, "CODE_SERVER_PORT")
         
         # Volume configuration
         env.workspace_dir = cs.get_str_value(config, "WORKSPACE_DIR", "./workspace")
