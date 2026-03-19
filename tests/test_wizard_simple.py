@@ -18,11 +18,11 @@ if "yield self._render_step_1()" in content:
 else:
     print("✅ PASS: compose() no longer calls _render_step_1()")
 
-# Check 2: compose() should yield empty Vertical
-if 'yield Vertical(id="step-content")' in content:
-    print("✅ PASS: compose() yields empty Vertical(id='step-content')")
+# Check 2: compose() should yield ScrollableContainer with inner Vertical
+if 'ScrollableContainer(id="step-content")' in content and 'Vertical(id="step-content-inner")' in content:
+    print("✅ PASS: compose() yields ScrollableContainer with inner Vertical")
 else:
-    print("❌ FAIL: compose() doesn't yield empty Vertical")
+    print("❌ FAIL: compose() doesn't yield correct structure")
     sys.exit(1)
 
 # Check 3: on_mount() should call render_current_step()

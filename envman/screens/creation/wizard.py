@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Button, Label, Input, RadioSet, RadioButton, Switch
-from textual.containers import Container, Vertical, Horizontal, Center
+from textual.containers import Container, Vertical, Horizontal, Center, ScrollableContainer
 from textual.binding import Binding
 
 from envman.services.creation import CreationService
@@ -20,6 +20,122 @@ from envman.utils.exception_logger import set_context
 
 class CreationWizard(Screen):
     """Multi-step environment creation wizard"""
+    
+    CSS = """
+    CreationWizard {
+        layout: vertical;
+    }
+    
+    #wizard-container {
+        height: 100%;
+        padding: 2;
+    }
+    
+    #progress {
+        text-align: center;
+        text-style: bold;
+        background: $primary;
+        color: $text;
+        padding: 1;
+        margin-bottom: 1;
+    }
+    
+    #step-title {
+        text-align: center;
+        text-style: bold;
+        color: $accent;
+        padding: 1;
+        margin-bottom: 2;
+    }
+    
+    #step-content {
+        height: 1fr;
+        border: solid $primary;
+        padding: 2;
+        margin-bottom: 1;
+    }
+    
+    #step-content-inner {
+        height: auto;
+    }
+    
+    #step-content Label {
+        margin-bottom: 0;
+        color: $text;
+    }
+    
+    #step-content Input {
+        margin-bottom: 1;
+    }
+    
+    #step-content Static {
+        color: $text-muted;
+        margin-bottom: 0;
+    }
+    
+    .section-header {
+        background: $primary;
+        color: $text;
+        padding: 0 1;
+        margin-top: 1;
+        margin-bottom: 0;
+        text-style: bold;
+    }
+    
+    .mount-hint {
+        color: $text-muted;
+        text-style: italic;
+        margin-top: 0;
+        margin-bottom: 1;
+    }
+    
+    .always-enabled {
+        color: $success;
+        text-style: bold;
+        margin-bottom: 0;
+    }
+    
+    .mount-row-disabled {
+        opacity: 0.5;
+    }
+    
+    #error-name, #error-port, .error-message {
+        color: $error;
+        text-style: bold;
+        margin-top: 0;
+        margin-bottom: 1;
+    }
+    
+    #wizard-nav {
+        height: 3;
+        align: center middle;
+    }
+    
+    #wizard-nav Button {
+        margin: 0 1;
+        min-width: 12;
+    }
+    
+    #summary-text {
+        color: $text;
+        background: $panel;
+        padding: 2;
+        border: solid $accent;
+    }
+    
+    #summary-action {
+        text-align: center;
+        color: $accent;
+        text-style: bold;
+        margin-top: 1;
+    }
+    
+    #workspace-help {
+        color: $text-muted;
+        text-style: italic;
+        margin-top: 1;
+    }
+    """
     
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
@@ -97,8 +213,9 @@ class CreationWizard(Screen):
             # Step title
             yield Static("", id="step-title")
             
-            # Step content (empty, will be populated in on_mount)
-            yield Vertical(id="step-content")
+            # Step content (scrollable, will be populated in on_mount)
+            with ScrollableContainer(id="step-content"):
+                yield Vertical(id="step-content-inner")
             
             # Navigation buttons
             with Horizontal(id="wizard-nav"):
@@ -178,62 +295,76 @@ class CreationWizard(Screen):
     def _render_step_3(self) -> Container:
         """Render Step 3: Volume Mounts"""
         return Vertical(
-            Static("Configure SSH and volume mounts:\n"),
-            # SSH Configuration (mandatory)
-            Static("SSH Configuration (mandatory):", id="ssh-header"),
+            # Section 1: SSH Access (Mandatory)
+            Static("🔑 SSH Access (Required)", classes="section-header"),
             Horizontal(
                 Label("SSH Mode:"),
                 RadioSet(
-                    RadioButton("Default: Use host ~/.ssh", value=(self.config['ssh_mode'] == 'default')),
-                    RadioButton("Project-Based: Custom ./ssh_config", value=(self.config['ssh_mode'] == 'project')),
+                    RadioButton("Host ~/.ssh", value=(self.config['ssh_mode'] == 'default')),
+                    RadioButton("Project ./ssh_config", value=(self.config['ssh_mode'] == 'project')),
                     id="ssh-mode"
                 ),
             ),
-            Static("The selected SSH directory will be mounted to /home/dev/.ssh (read-only) in the container.\n", id="ssh-help"),
-            # GLOBAL_CONFIG
-            Static("Additional Volume Mounts:\n", id="volume-header"),
+            Static("→ /home/dev/.ssh (ro)", classes="mount-hint"),
+            
+            # Section 2: Always Mounted
+            Static("📁 Always Mounted", classes="section-header"),
+            Static("✓ WORKSPACE_DIR → /workspace (rw)", classes="always-enabled"),
+            Static("✓ OPENCODE_ENV_CONFIG", classes="always-enabled"),
+            Input(
+                value=self.config['opencode_env_config'],
+                placeholder="./opencode_config",
+                id="input-env-path"
+            ),
+            Static("→ /home/dev/.opencode (rw)", classes="mount-hint"),
+            
+            # Section 3: Optional Configuration Mounts
+            Static("⚙️ Optional Config Mounts", classes="section-header"),
             Horizontal(
-                Label("Mount GLOBAL_CONFIG (shared OpenCode config):"),
+                Label("Mount GLOBAL_CONFIG:"),
                 Switch(value=self.config['mount_global_config'], id="switch-global"),
+                id="row-global"
             ),
             Input(
                 value=self.config['global_config'],
                 placeholder="../shared/config/.opencode",
                 id="input-global-path"
             ),
-            # PROJECT_CONFIG
+            Static("→ /home/dev/.opencode-shared (ro)", classes="mount-hint"),
+            
             Horizontal(
-                Label("\nMount PROJECT_CONFIG (project-specific config):"),
+                Label("Mount PROJECT_CONFIG:"),
                 Switch(value=self.config['mount_project_config'], id="switch-project"),
+                id="row-project"
             ),
             Input(
                 value=self.config['project_config'],
                 placeholder="./opencode_project_config",
                 id="input-project-path"
             ),
-            # OPENCODE_ENV_CONFIG (always enabled)
-            Static("\n✓ OPENCODE_ENV_CONFIG (per-environment config - always enabled)"),
-            Input(
-                value=self.config['opencode_env_config'],
-                placeholder="./opencode_config",
-                id="input-env-path"
-            ),
-            # WORKTREE_DIR
+            Static("→ /home/dev/.opencode-project (rw)", classes="mount-hint"),
+            
+            # Section 4: Optional Integration Mounts
+            Static("🔌 Optional Integration Mounts", classes="section-header"),
             Horizontal(
-                Label("\nMount WORKTREE_DIR (git worktrees accessible to host VSCode):"),
+                Label("Mount WORKTREE_DIR:"),
                 Switch(value=self.config['mount_worktree'], id="switch-worktree"),
+                id="row-worktree"
             ),
             Input(
                 value=self.config['worktree_dir'],
                 placeholder="./worktree",
                 id="input-worktree-path"
             ),
-            # SHARED_AUTH_CONFIG
+            Static("→ /home/dev/worktree (rw)", classes="mount-hint"),
+            
             Horizontal(
-                Label("\nMount SHARED_AUTH (shared provider credentials):"),
+                Label("Mount SHARED_AUTH:"),
                 Switch(value=self.config['mount_shared_auth'], id="switch-shared-auth"),
+                id="row-shared-auth"
             ),
-            Static("Path: ../../shared/auth/auth.json (fixed)", id="shared-auth-help"),
+            Static("Path: ../../shared/auth/auth.json", classes="mount-hint"),
+            Static("→ /home/dev/.opencode/auth.json (ro)", classes="mount-hint"),
         )
     
     def _render_step_4(self) -> Container:
@@ -285,6 +416,35 @@ class CreationWizard(Screen):
         elif button_id == "btn-gen-password":
             self.generate_password()
     
+    def on_switch_changed(self, event: Switch.Changed) -> None:
+        """Handle switch toggle events"""
+        switch_id = event.switch.id
+        is_enabled = event.value
+        
+        # Map switches to their corresponding inputs and rows
+        switch_input_map = {
+            "switch-global": ("input-global-path", "row-global"),
+            "switch-project": ("input-project-path", "row-project"),
+            "switch-worktree": ("input-worktree-path", "row-worktree"),
+        }
+        
+        if switch_id in switch_input_map:
+            input_id, row_id = switch_input_map[switch_id]
+            
+            # Enable/disable the input
+            try:
+                input_widget = self.query_one(f"#{input_id}", Input)
+                input_widget.disabled = not is_enabled
+                
+                # Add/remove disabled styling to the row
+                row_widget = self.query_one(f"#{row_id}", Horizontal)
+                if is_enabled:
+                    row_widget.remove_class("mount-row-disabled")
+                else:
+                    row_widget.add_class("mount-row-disabled")
+            except Exception:
+                pass  # Widget may not exist yet
+    
     def go_next(self) -> None:
         """Go to next step"""
         # If we're on summary screen, create the environment
@@ -312,7 +472,19 @@ class CreationWizard(Screen):
     
     def go_back(self) -> None:
         """Go to previous step"""
-        if self.current_step > 1:
+        # If we're on summary screen, go back to step 4
+        if self.creating:
+            self.creating = False
+            self.current_step = self.total_steps
+            self.render_current_step()
+            self.update_progress()
+            self.update_navigation()
+            # Reset Next button styling
+            next_btn = self.query_one("#btn-next", Button)
+            next_btn.label = "Review"
+            next_btn.remove_class("success")
+            next_btn.add_class("primary")
+        elif self.current_step > 1:
             self.current_step -= 1
             self.render_current_step()
             self.update_progress()
@@ -322,6 +494,8 @@ class CreationWizard(Screen):
         """Validate current step inputs"""
         if self.current_step == 1:
             return self.validate_step_1()
+        elif self.current_step == 3:
+            return self.validate_step_3()
         elif self.current_step == 4:
             return self.validate_step_4()
         return True
@@ -341,6 +515,39 @@ class CreationWizard(Screen):
             return False
         
         error_label.update("")
+        return True
+    
+    def validate_step_3(self) -> bool:
+        """Validate step 3 mount inputs"""
+        errors = []
+        
+        # Check OPENCODE_ENV_CONFIG (always required)
+        env_path = self.query_one("#input-env-path", Input).value.strip()
+        if not env_path:
+            errors.append("OPENCODE_ENV_CONFIG path is required")
+        
+        # Check optional mounts that are enabled
+        mount_validations = [
+            ("switch-global", "input-global-path", "GLOBAL_CONFIG"),
+            ("switch-project", "input-project-path", "PROJECT_CONFIG"),
+            ("switch-worktree", "input-worktree-path", "WORKTREE_DIR"),
+        ]
+        
+        for switch_id, input_id, mount_name in mount_validations:
+            try:
+                switch = self.query_one(f"#{switch_id}", Switch)
+                if switch.value:
+                    input_widget = self.query_one(f"#{input_id}", Input)
+                    if not input_widget.value.strip():
+                        errors.append(f"{mount_name} is enabled but path is empty")
+            except Exception:
+                pass
+        
+        # Display errors if any
+        if errors:
+            self.app.notify(f"❌ Validation errors:\n" + "\n".join(f"  • {err}" for err in errors), severity="error", timeout=10)
+            return False
+        
         return True
     
     def validate_step_4(self) -> bool:
@@ -423,8 +630,8 @@ class CreationWizard(Screen):
         elif self.current_step == 4:
             step_title.update("Step 4: Server Configuration")
         
-        # Update content
-        content_container = self.query_one("#step-content", Vertical)
+        # Update content (now targeting the inner vertical container)
+        content_container = self.query_one("#step-content-inner", Vertical)
         content_container.remove_children()
         
         if self.current_step == 1:
@@ -433,8 +640,31 @@ class CreationWizard(Screen):
             content_container.mount(self._render_step_2())
         elif self.current_step == 3:
             content_container.mount(self._render_step_3())
+            # Initialize disabled states for step 3
+            self.app.call_later(self._initialize_step_3_states)
         elif self.current_step == 4:
             content_container.mount(self._render_step_4())
+    
+    def _initialize_step_3_states(self) -> None:
+        """Initialize disabled states for step 3 inputs based on switch values"""
+        switch_input_map = {
+            "switch-global": ("input-global-path", "row-global"),
+            "switch-project": ("input-project-path", "row-project"),
+            "switch-worktree": ("input-worktree-path", "row-worktree"),
+        }
+        
+        for switch_id, (input_id, row_id) in switch_input_map.items():
+            try:
+                switch = self.query_one(f"#{switch_id}", Switch)
+                input_widget = self.query_one(f"#{input_id}", Input)
+                row_widget = self.query_one(f"#{row_id}", Horizontal)
+                
+                # Set initial disabled state
+                input_widget.disabled = not switch.value
+                if not switch.value:
+                    row_widget.add_class("mount-row-disabled")
+            except Exception:
+                pass  # Widget may not exist yet
     
     def show_summary(self) -> None:
         """Show summary and create environment"""
@@ -442,8 +672,8 @@ class CreationWizard(Screen):
         step_title = self.query_one("#step-title", Static)
         step_title.update("Review Configuration")
         
-        # Update content
-        content_container = self.query_one("#step-content", Vertical)
+        # Update content (now targeting the inner vertical container)
+        content_container = self.query_one("#step-content-inner", Vertical)
         content_container.remove_children()
         content_container.mount(self._render_summary())
         

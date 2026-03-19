@@ -240,19 +240,57 @@ class CreationService:
         lines.append("SSH Configuration:")
         ssh_mode = config.get("ssh_mode", "default")
         if ssh_mode == "default":
+            ssh_path = config.get('ssh_host_path', str(Path.home() / '.ssh'))
             lines.append(f"  Mode: Default (using host ~/.ssh)")
-            lines.append(f"  Path: {config.get('ssh_host_path', str(Path.home() / '.ssh'))}")
+            lines.append(f"  Source: {ssh_path}")
+            lines.append(f"  Destination: /home/dev/.ssh (ro)")
         else:
+            ssh_path = config.get('ssh_project_path', './ssh_config')
             lines.append(f"  Mode: Project-Based")
-            lines.append(f"  Path: {config.get('ssh_project_path', './ssh_config')}")
+            lines.append(f"  Source: {ssh_path}")
+            lines.append(f"  Destination: /home/dev/.ssh (ro)")
         lines.append("")
         lines.append("Volume Mounts:")
-        lines.append(f"  {'✓' if config.get('mount_global_config') else '✗'} GLOBAL_CONFIG")
-        lines.append(f"  {'✓' if config.get('mount_project_config') else '✗'} PROJECT_CONFIG")
-        lines.append(f"  {'✓' if config.get('mount_opencode_env_config', True) else '✗'} OPENCODE_ENV_CONFIG")
-        lines.append(f"  {'✓' if config.get('mount_worktree') else '✗'} WORKTREE_DIR")
-        lines.append(f"  {'✓' if config.get('mount_shared_auth', True) else '✗'} SHARED_AUTH (provider credentials)")
-        lines.append(f"  ✓ SSH (mandatory)")
+        lines.append("  Always mounted:")
+        lines.append(f"    ✓ WORKSPACE_DIR → /workspace (rw)")
+        env_config = config.get('opencode_env_config', './opencode_config')
+        lines.append(f"    ✓ OPENCODE_ENV_CONFIG: {env_config} → /home/dev/.opencode (rw)")
+        
+        # Optional mounts
+        optional_enabled = []
+        optional_disabled = []
+        
+        if config.get('mount_global_config'):
+            global_path = config.get('global_config', '../shared/config/.opencode')
+            optional_enabled.append(f"    ✓ GLOBAL_CONFIG: {global_path} → /home/dev/.config/opencode (ro)")
+        else:
+            optional_disabled.append("    ✗ GLOBAL_CONFIG")
+        
+        if config.get('mount_project_config'):
+            project_path = config.get('project_config', './opencode_project_config')
+            optional_enabled.append(f"    ✓ PROJECT_CONFIG: {project_path} → /home/dev/workspace/.opencode (rw)")
+        else:
+            optional_disabled.append("    ✗ PROJECT_CONFIG")
+        
+        if config.get('mount_worktree'):
+            worktree_path = config.get('worktree_dir', './worktree')
+            optional_enabled.append(f"    ✓ WORKTREE_DIR: {worktree_path} → /home/dev/.local/share/opencode/worktree (rw)")
+        else:
+            optional_disabled.append("    ✗ WORKTREE_DIR")
+        
+        if config.get('mount_shared_auth', True):
+            optional_enabled.append(f"    ✓ SHARED_AUTH: ../../shared/auth/auth.json → /home/dev/.local/share/opencode/auth.json (ro)")
+        else:
+            optional_disabled.append("    ✗ SHARED_AUTH")
+        
+        if optional_enabled:
+            lines.append("  Optional (enabled):")
+            lines.extend(optional_enabled)
+        
+        if optional_disabled:
+            lines.append("  Optional (disabled):")
+            lines.extend(optional_disabled)
+        
         lines.append("")
         lines.append("Server Configuration:")
         lines.append(f"  Port:     {config['server_port']}")
