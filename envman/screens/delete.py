@@ -7,7 +7,7 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Header, Footer, Static, Input, Checkbox, Button
-from textual.containers import Container, Vertical, Horizontal, Center
+from textual.containers import Container, Vertical, Horizontal, ScrollableContainer
 from textual.binding import Binding
 
 from envman.models.environment import Environment
@@ -19,75 +19,114 @@ from envman.utils.exception_logger import set_context
 
 class DeleteEnvironmentScreen(Screen):
     """Delete environment with confirmation and optional data cleanup"""
-    
+
     CSS = """
     DeleteEnvironmentScreen {
         align: center middle;
     }
-    
+
+    /* Dialog fills 92% of width so long paths are never cut off */
     #delete-dialog {
-        width: 70;
+        width: 92%;
+        max-width: 110;
         height: auto;
+        max-height: 90%;
         border: thick $error 80%;
         background: $surface;
-        padding: 2;
+        padding: 1 2;
     }
-    
+
     #title {
         width: 100%;
         content-align: center middle;
         text-style: bold;
         color: $error;
-        padding: 0 0 1 0;
+        height: 1;
+        margin-bottom: 1;
     }
-    
+
     #warning {
         width: 100%;
         content-align: center middle;
         color: $error;
         text-style: bold;
-        padding: 1 0;
+        height: 1;
+        margin-bottom: 1;
     }
-    
-    #message {
-        width: 100%;
-        padding: 1 0;
-    }
-    
+
+    /* ── Always-removed info box ───────────────────────────────── */
     .info-box {
         border: solid $primary;
-        padding: 1;
-        margin: 1 0;
+        padding: 0 1;
+        margin-bottom: 1;
     }
-    
-    .checkbox-container {
-        padding: 1 0;
+
+    .info-item {
+        height: 1;
+        color: $text;
     }
-    
+
+    .safe-note {
+        color: $success;
+        text-style: bold;
+        height: 1;
+        margin-top: 1;
+    }
+
+    /* ── Optional deletions section ─────────────────────────────── */
+    #optional-label {
+        color: $text;
+        text-style: bold;
+        height: 1;
+        margin-bottom: 0;
+    }
+
+    .opt-row {
+        height: auto;
+        margin-top: 1;
+    }
+
+    /* Path lines sit directly under their checkbox, indented */
+    .path-line {
+        color: $text-muted;
+        text-style: italic;
+        margin-left: 4;
+        margin-top: 0;
+        /* Allow wrapping so path is never truncated */
+        width: 100%;
+    }
+
+    /* ── Confirmation ────────────────────────────────────────────── */
     #confirmation-section {
-        padding: 1 0;
+        margin-top: 1;
     }
-    
+
+    #confirmation-label {
+        height: 1;
+        margin-bottom: 0;
+    }
+
     #confirmation-input {
-        margin: 1 0;
+        margin-top: 0;
     }
-    
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
     #buttons {
         width: 100%;
         height: auto;
         align: center middle;
-        padding: 1 0 0 0;
+        margin-top: 1;
     }
-    
+
     Button {
         margin: 0 1;
     }
     """
-    
+
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
     ]
-    
+
     def __init__(
         self,
         environment: Environment,
@@ -98,209 +137,182 @@ class DeleteEnvironmentScreen(Screen):
         self.environment = environment
         self.docker_service = docker_service
         self.discovery_service = discovery_service
-        self.delete_workspace = False
-        self.delete_config = False
         self.is_deleting = False
-        
-        # Set context early so it's available during compose()
+
         set_context(screen="DeleteEnvironment", environment_name=self.environment.name)
-    
+
     def compose(self) -> ComposeResult:
-        """Compose the deletion dialog"""
         yield Header()
-        
+
+        env = self.environment
+        workspace_path  = env.path / "workspace"
+        env_config_path = env.path / "opencode_config"
+
         with Container(id="delete-dialog"):
-            yield Static(f"⚠️  Delete Environment: {self.environment.name}", id="title")
-            
+
+            yield Static(f"⚠️  Delete Environment: [bold]{env.name}[/bold]", id="title")
             yield Static("WARNING: This action cannot be undone!", id="warning")
-            
-            yield Static(
-                "This will permanently delete the following:",
-                id="message"
-            )
-            
+
+            # ── What is always removed ─────────────────────────────────
             with Vertical(classes="info-box"):
-                yield Static("✓ Docker container (stopped and removed)", classes="info-item")
-                yield Static("✓ Container volumes", classes="info-item")
-                yield Static("✓ Network connections", classes="info-item")
-            
-            with Vertical(id="optional-deletions"):
-                yield Static("Optionally delete (check to remove):")
-                
-                with Vertical(classes="checkbox-container"):
-                    workspace_path = str(self.environment.path / "workspace")
-                    yield Checkbox(
-                        f"Delete workspace data ({workspace_path})",
-                        value=False,
-                        id="delete-workspace"
-                    )
-                
-                with Vertical(classes="checkbox-container"):
-                    config_path = str(self.environment.path / "opencode_config")
-                    yield Checkbox(
-                        f"Delete configuration ({config_path})",
-                        value=False,
-                        id="delete-config"
-                    )
-                
-                with Vertical(classes="checkbox-container"):
-                    yield Checkbox(
-                        f"Delete entire environment directory ({self.environment.path})",
-                        value=False,
-                        id="delete-all"
-                    )
-            
+                yield Static("Always removed:", classes="info-item")
+                yield Static("  ✓  Docker container — stopped and removed", classes="info-item")
+                yield Static("  ✓  Named Docker volumes (docker compose down --volumes)", classes="info-item")
+                yield Static("  ✓  Container network attachment", classes="info-item")
+                yield Static(
+                    "  🛡  Global config, shared auth and host ~/.ssh are NEVER touched",
+                    classes="safe-note",
+                )
+
+            # ── Optional disk deletions ────────────────────────────────
+            yield Static("Optionally also delete from disk:", id="optional-label")
+
+            with Vertical(classes="opt-row"):
+                yield Checkbox("Delete workspace data", value=False, id="delete-workspace")
+                yield Static(str(workspace_path), classes="path-line")
+
+            with Vertical(classes="opt-row"):
+                yield Checkbox("Delete environment config", value=False, id="delete-config")
+                yield Static(str(env_config_path), classes="path-line")
+
+            with Vertical(classes="opt-row"):
+                yield Checkbox(
+                    "Delete entire environment directory  (includes everything above)",
+                    value=False,
+                    id="delete-all",
+                )
+                yield Static(str(env.path), classes="path-line")
+
+            # ── Confirmation input ─────────────────────────────────────
             with Vertical(id="confirmation-section"):
                 yield Static(
-                    f"Type the environment name '{self.environment.name}' to confirm deletion:",
-                    id="confirmation-label"
+                    f"Type [bold]{env.name}[/bold] to confirm deletion:",
+                    id="confirmation-label",
                 )
-                yield Input(
-                    placeholder=self.environment.name,
-                    id="confirmation-input"
-                )
-            
+                yield Input(placeholder=env.name, id="confirmation-input")
+
             with Horizontal(id="buttons"):
                 yield Button("Cancel", variant="default", id="cancel-btn")
-                yield Button("Delete", variant="error", id="delete-btn", disabled=True)
-        
+                yield Button("Delete", variant="error",   id="delete-btn", disabled=True)
+
         yield Footer()
-    
+
     def on_mount(self) -> None:
-        """Focus the confirmation input on mount"""
         self.query_one("#confirmation-input", Input).focus()
-    
+
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Enable delete button when confirmation matches"""
         if event.input.id == "confirmation-input":
-            delete_btn = self.query_one("#delete-btn", Button)
-            delete_btn.disabled = (event.value != self.environment.name)
-    
+            self.query_one("#delete-btn", Button).disabled = (
+                event.value != self.environment.name
+            )
+
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
-        """Handle checkbox changes"""
         if event.checkbox.id == "delete-all":
-            # If "delete all" is checked, disable individual options
-            workspace_cb = self.query_one("#delete-workspace", Checkbox)
-            config_cb = self.query_one("#delete-config", Checkbox)
-            
-            if event.value:
-                workspace_cb.disabled = True
-                config_cb.disabled = True
-            else:
-                workspace_cb.disabled = False
-                config_cb.disabled = False
-    
+            # "Delete all" supersedes the individual options
+            for cb_id in ("delete-workspace", "delete-config"):
+                self.query_one(f"#{cb_id}", Checkbox).disabled = event.value
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses"""
         if event.button.id == "cancel-btn":
             self.action_cancel()
         elif event.button.id == "delete-btn":
             await self.perform_deletion()
-    
+
     async def perform_deletion(self) -> None:
-        """Perform the actual deletion"""
         if self.is_deleting:
             return
-        
+
         self.is_deleting = True
-        
-        # Disable buttons during deletion
         delete_btn = self.query_one("#delete-btn", Button)
         cancel_btn = self.query_one("#cancel-btn", Button)
         delete_btn.disabled = True
         cancel_btn.disabled = True
-        
+
         try:
-            # Get deletion options
-            delete_all = self.query_one("#delete-all", Checkbox).value
-            delete_workspace = self.query_one("#delete-workspace", Checkbox).value
-            delete_config = self.query_one("#delete-config", Checkbox).value
-            
-            # Create backup directory
-            backups_dir = self.environment.path / "backups"
-            backups_dir.mkdir(exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # Step 1: Stop container if running
+            delete_all       = self.query_one("#delete-all",        Checkbox).value
+            delete_workspace = self.query_one("#delete-workspace",   Checkbox).value
+            delete_config    = self.query_one("#delete-config",      Checkbox).value
+
+            # Step 1: Stop running container
             if self.environment.is_running:
                 self.notify("Stopping container...", severity="information")
                 success, output = await asyncio.to_thread(
-                    self.docker_service.stop_container,
-                    str(self.environment.path)
+                    self.docker_service.stop_container, str(self.environment.path)
                 )
                 if not success:
                     self.notify(f"Failed to stop container: {output}", severity="error")
                     return
-            
-            # Step 2: Remove container
+
+            # Step 2: Remove container + named volumes
             self.notify("Removing container...", severity="information")
             success, output = await asyncio.to_thread(
                 self.docker_service.remove_container,
                 str(self.environment.path),
                 force=True,
-                volumes=True
+                volumes=True,
             )
-            
             if not success:
                 self.notify(f"Failed to remove container: {output}", severity="error")
                 return
-            
-            # Step 3: Delete directories based on user selection
+
+            # Step 3: Optional disk deletions
+            #
+            # SAFETY: only paths that are children of environment.path are ever
+            # touched here.  Global config (../shared/...) and shared auth
+            # (../../shared/...) live OUTSIDE environment.path and are never
+            # passed to rmtree.
             if delete_all:
-                # Delete entire environment directory
-                self.notify("Deleting entire environment directory...", severity="information")
-                
-                # Create a backup of important files first
-                backup_archive = backups_dir.parent / f"backup_{self.environment.name}_{timestamp}.tar.gz"
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_archive = (
+                    self.environment.path.parent
+                    / f"backup_{self.environment.name}_{timestamp}.tar.gz"
+                )
                 try:
                     import tarfile
                     with tarfile.open(backup_archive, "w:gz") as tar:
-                        # Backup .env and docker-compose.yml
                         if self.environment.env_file_path.exists():
                             tar.add(self.environment.env_file_path, arcname=".env")
                         if self.environment.docker_compose_path.exists():
                             tar.add(self.environment.docker_compose_path, arcname="docker-compose.yml")
-                    
-                    self.notify(f"Backup created: {backup_archive}", severity="information")
+                    self.notify(f"Config backup: {backup_archive.name}", severity="information")
                 except Exception as e:
-                    self.notify(f"Backup failed (continuing anyway): {e}", severity="warning")
-                
-                # Delete the directory
+                    self.notify(f"Backup failed (continuing): {e}", severity="warning")
+
+                self.notify("Deleting environment directory...", severity="information")
                 await asyncio.to_thread(shutil.rmtree, self.environment.path, ignore_errors=True)
-                
+
             else:
-                # Selective deletion
                 if delete_workspace:
                     workspace_dir = self.environment.path / "workspace"
                     if workspace_dir.exists():
                         self.notify("Deleting workspace data...", severity="information")
                         await asyncio.to_thread(shutil.rmtree, workspace_dir, ignore_errors=True)
-                
+
                 if delete_config:
                     config_dir = self.environment.path / "opencode_config"
                     if config_dir.exists():
-                        self.notify("Deleting configuration...", severity="information")
+                        self.notify("Deleting environment config...", severity="information")
                         await asyncio.to_thread(shutil.rmtree, config_dir, ignore_errors=True)
-            
-            # Success!
+
+            # Success — dismiss first, then clean up state
             self.notify(
-                f"Environment '{self.environment.name}' deleted successfully",
+                f"✓ Environment '{self.environment.name}' deleted",
                 severity="information",
-                timeout=5
+                timeout=5,
             )
-            
-            # Close this screen and refresh dashboard
+            self.is_deleting = False
             self.dismiss(True)
-        
+            return
+
         except DockerError as e:
             self.notify(f"Docker error: {e}", severity="error")
         except Exception as e:
             self.notify(f"Deletion failed: {e}", severity="error")
-        finally:
-            self.is_deleting = False
-            delete_btn.disabled = False
-            cancel_btn.disabled = False
-    
+
+        # Only reached on failure — re-enable so user can retry or cancel
+        self.is_deleting = False
+        delete_btn.disabled = False
+        cancel_btn.disabled = False
+
     def action_cancel(self) -> None:
-        """Cancel deletion"""
         self.dismiss(False)

@@ -258,16 +258,17 @@ class LogsScreen(Screen):
     
     def _line_matches_filters(self, line: str) -> bool:
         """Check if a line matches current filters"""
-        # Check level filter
+        # Use LogService for level filtering (same logic as batch apply_filters)
         if self.current_filter and self.current_filter != "ALL":
-            if self.current_filter.upper() not in line.upper():
+            filtered = self.log_service.filter_by_level([line], self.current_filter)
+            if not filtered:
                 return False
-        
+
         # Check search filter
         if self.current_search:
             if self.current_search.lower() not in line.lower():
                 return False
-        
+
         return True
     
     def update_status(self) -> None:
