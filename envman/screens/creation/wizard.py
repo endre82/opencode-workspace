@@ -53,6 +53,7 @@ class CreationWizard(Screen):
         border: solid $primary;
         padding: 2;
         margin-bottom: 1;
+        scrollbar-gutter: stable;
     }
     
     #step-content-inner {
@@ -344,8 +345,6 @@ class CreationWizard(Screen):
             ),
             Static("→ /home/dev/.opencode-project (rw)", classes="mount-hint"),
             
-            # Section 4: Optional Integration Mounts
-            Static("🔌 Optional Integration Mounts", classes="section-header"),
             Horizontal(
                 Label("Mount WORKTREE_DIR:"),
                 Switch(value=self.config['mount_worktree'], id="switch-worktree"),
@@ -358,6 +357,8 @@ class CreationWizard(Screen):
             ),
             Static("→ /home/dev/worktree (rw)", classes="mount-hint"),
             
+            # Section 4: Shared Authentication
+            Static("🔐 Shared Authentication", classes="section-header"),
             Horizontal(
                 Label("Mount SHARED_AUTH:"),
                 Switch(value=self.config['mount_shared_auth'], id="switch-shared-auth"),

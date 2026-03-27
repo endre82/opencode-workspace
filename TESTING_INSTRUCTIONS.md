@@ -23,9 +23,10 @@ python3 -m envman.app
 
 ### What to Check:
 1. **All content visible**: 4 section headers, 4 switches, all hint text
-2. **Scrolling works**: Try scrolling with arrow keys or mouse wheel
-3. **Switches toggle**: Click each switch, verify inputs enable/disable
-4. **Can proceed**: Press Enter to go to Step 4 (Review)
+2. **Scrollbar appears**: When content overflows (resize terminal small), scrollbar gutter prevents layout shift
+3. **Scrolling works**: Try scrolling with arrow keys or mouse wheel
+4. **Switches toggle**: Click each switch, verify inputs enable/disable
+5. **Can proceed**: Press Enter to go to Step 4 (Review)
 
 ### Expected Layout (Step 3):
 ```
@@ -80,12 +81,14 @@ Navigate to Step 3 and verify:
 ✅ Scrolling now works (added `height: auto` to content-inner)
 ✅ Compact spacing (removed excessive margins and newlines)
 ✅ All switches visible (proper ScrollableContainer implementation)
+✅ Scrollbar gutter added (prevents layout shift when scrollbar appears)
 
 ## What Changed from Original
 
 ### CSS Changes:
 - Removed layout-breaking classes: `.mount-label`, `.mount-toggle`, `.mount-row`
 - Added `#step-content-inner { height: auto; }` for proper scrolling
+- Added `scrollbar-gutter: stable` to prevent layout shift when scrollbar appears
 - Reduced margins to 0-1 for compact spacing
 - Kept section headers and existing functional classes
 
