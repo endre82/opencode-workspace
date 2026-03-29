@@ -104,6 +104,16 @@ class CreationService:
             (env_dir / "workspace").mkdir(exist_ok=True)
             (env_dir / "opencode_config").mkdir(exist_ok=True)
             
+            # Create project config directory and file if in project mode
+            mode = config.get('opencode_config_mode', 'project')
+            if mode == 'project':
+                project_config_dir = env_dir / "opencode_project_config"
+                project_config_dir.mkdir(exist_ok=True)
+                # Create empty opencode.jsonc for project mode
+                project_jsonc = project_config_dir / "opencode.jsonc"
+                if not project_jsonc.exists():
+                    project_jsonc.write_text('{}')
+            
             # Create worktree directory if mounting is enabled
             if config.get('mount_worktree') and config.get('worktree_dir'):
                 worktree_path = Path(config['worktree_dir']).expanduser()
@@ -114,6 +124,16 @@ class CreationService:
             # Create shared directories if needed
             (self.shared_dir / "config").mkdir(parents=True, exist_ok=True)
             (self.shared_dir / "models").mkdir(parents=True, exist_ok=True)
+            (self.shared_dir / "auth").mkdir(parents=True, exist_ok=True)
+            
+            # Create global opencode.jsonc and auth.json if in global mode
+            if mode == 'global':
+                global_jsonc = self.shared_dir / "config" / "opencode.jsonc"
+                if not global_jsonc.exists():
+                    global_jsonc.write_text('{}')
+                global_auth = self.shared_dir / "auth" / "auth.json"
+                if not global_auth.exists():
+                    global_auth.write_text('{}')
             
             # Copy and process .env template
             self._create_env_file(env_dir / ".env", env_template, env_name, config)
@@ -164,20 +184,29 @@ class CreationService:
             ('CODE_SERVER_PORT=8096', f'CODE_SERVER_PORT={int(config["server_port"]) + 4000}'),
             ('WEBUI_PORT=9096', f'WEBUI_PORT={int(config["server_port"]) + 5000}'),
             ('WORKSPACE_DIR=./workspace', f'WORKSPACE_DIR={config["workspace_dir"]}'),
-            ('GLOBAL_CONFIG=../shared/config/.opencode', f'GLOBAL_CONFIG={config.get("global_config", "../shared/config/.opencode")}'),
-            ('PROJECT_CONFIG=./opencode_project_config', f'PROJECT_CONFIG={config.get("project_config", "./opencode_project_config")}'),
-            ('OPENCODE_ENV_CONFIG=./opencode_config', f'OPENCODE_ENV_CONFIG={config.get("opencode_env_config", "./opencode_config")}'),
             ('WORKTREE_DIR=${WORKSPACE_DIR}.worktrees', f'WORKTREE_DIR={config.get("worktree_dir", "./workspace.worktrees")}'),
-            ('SHARED_AUTH_CONFIG=../../shared/auth/auth.json', f'SHARED_AUTH_CONFIG={config.get("shared_auth_config", "../../shared/auth/auth.json")}'),
-            ('MOUNT_GLOBAL_CONFIG=false', f'MOUNT_GLOBAL_CONFIG={str(config.get("mount_global_config", False)).lower()}'),
-            ('MOUNT_PROJECT_CONFIG=false', f'MOUNT_PROJECT_CONFIG={str(config.get("mount_project_config", False)).lower()}'),
-            ('MOUNT_OPENCODE_ENV_CONFIG=true', f'MOUNT_OPENCODE_ENV_CONFIG={str(config.get("mount_opencode_env_config", True)).lower()}'),
-            ('MOUNT_SHARED_AUTH=true', f'MOUNT_SHARED_AUTH={str(config.get("mount_shared_auth", True)).lower()}'),
             ('SSH_MODE=default', f'SSH_MODE={ssh_mode}'),
             ('SSH_HOST_PATH=/home/endre/.ssh', f'SSH_HOST_PATH={config.get("ssh_host_path", str(Path.home() / ".ssh"))}'),
             ('SSH_PROJECT_PATH=./ssh_config', f'SSH_PROJECT_PATH={config.get("ssh_project_path", "./ssh_config")}'),
             ('SSH_CONFIG=/home/endre/.ssh', f'SSH_CONFIG={ssh_config_path}'),
+            # OpenCode Config Mode
+            ('OPENCODE_CONFIG_MODE=project', f'OPENCODE_CONFIG_MODE={config.get("opencode_config_mode", "project")}'),
+            ('OPENCODE_ENV_CONFIG=./opencode_config', f'OPENCODE_ENV_CONFIG=./opencode_config'),  # always ./opencode_config
+            ('HOST_OPENCODE_JSONC=/home/endre/.opencode/opencode.jsonc', f'HOST_OPENCODE_JSONC={str(Path.home() / ".opencode" / "opencode.jsonc")}'),
+            ('HOST_OPENCODE_AUTH=/home/endre/.local/share/opencode/auth.json', f'HOST_OPENCODE_AUTH={str(Path.home() / ".local" / "share" / "opencode" / "auth.json")}'),
         ]
+        
+        # Add mode-specific sources
+        mode = config.get('opencode_config_mode', 'project')
+        if mode == 'host':
+            replacements.append(('OPENCODE_JSONC_SOURCE=./opencode_project_config/opencode.jsonc', f'OPENCODE_JSONC_SOURCE={str(Path.home() / ".opencode" / "opencode.jsonc")}'))
+            replacements.append(('OPENCODE_AUTH_SOURCE=', f'OPENCODE_AUTH_SOURCE={str(Path.home() / ".local" / "share" / "opencode" / "auth.json")}'))
+        elif mode == 'global':
+            replacements.append(('OPENCODE_JSONC_SOURCE=./opencode_project_config/opencode.jsonc', 'OPENCODE_JSONC_SOURCE=../../shared/config/opencode.jsonc'))
+            replacements.append(('OPENCODE_AUTH_SOURCE=', 'OPENCODE_AUTH_SOURCE=../../shared/auth/auth.json'))
+        else:  # project
+            replacements.append(('OPENCODE_JSONC_SOURCE=./opencode_project_config/opencode.jsonc', 'OPENCODE_JSONC_SOURCE=./opencode_project_config/opencode.jsonc'))
+            replacements.append(('OPENCODE_AUTH_SOURCE=', 'OPENCODE_AUTH_SOURCE='))
         
         for old, new in replacements:
             content = content.replace(old, new)
@@ -203,29 +232,31 @@ class CreationService:
         # SSH mount is always active (mandatory) - no conditional handling needed
         # The template already has it uncommented
         
-        # Uncomment volume mounts based on configuration
-        if config.get('mount_global_config', False):
+        # Uncomment OpenCode config mounts based on mode
+        mode = config.get('opencode_config_mode', 'project')
+        
+        if mode in ('host', 'global'):
+            # Uncomment both :ro lines (config and auth files)
             content = content.replace(
-                '      # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro',
-                '      - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro'
+                '      # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:ro',
+                '      - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:ro'
+            )
+            content = content.replace(
+                '      # - ${OPENCODE_AUTH_SOURCE}:/home/dev/.local/share/opencode/auth.json:ro',
+                '      - ${OPENCODE_AUTH_SOURCE}:/home/dev/.local/share/opencode/auth.json:ro'
+            )
+        else:  # project mode
+            # Uncomment :rw line (config file only, auth is in env data dir)
+            content = content.replace(
+                '      # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:rw',
+                '      - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:rw'
             )
         
-        if config.get('mount_project_config', False):
-            content = content.replace(
-                '      # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw',
-                '      - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw'
-            )
-        
+        # Uncomment worktree mount if enabled
         if config.get('mount_worktree', False):
             content = content.replace(
                 '      # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw',
                 '      - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw'
-            )
-        
-        if config.get('mount_shared_auth', True):
-            content = content.replace(
-                '      # - ${SHARED_AUTH_CONFIG}:/home/dev/.local/share/opencode/auth.json:ro',
-                '      - ${SHARED_AUTH_CONFIG}:/home/dev/.local/share/opencode/auth.json:ro'
             )
         
         with open(target_path, 'w') as f:
@@ -259,46 +290,32 @@ class CreationService:
             lines.append(f"  Source: {ssh_path}")
             lines.append(f"  Destination: /home/dev/.ssh (ro)")
         lines.append("")
+        lines.append("OpenCode Configuration:")
+        mode = config.get('opencode_config_mode', 'project')
+        lines.append(f"  Mode: {mode.upper()}")
+        
+        if mode == 'host':
+            lines.append(f"    Config: ~/.opencode/opencode.jsonc (ro)")
+            lines.append(f"    Auth: ~/.local/share/opencode/auth.json (ro)")
+        elif mode == 'global':
+            lines.append(f"    Config: ../../shared/config/opencode.jsonc (ro)")
+            lines.append(f"    Auth: ../../shared/auth/auth.json (ro)")
+        else:  # project
+            lines.append(f"    Config: ./opencode_project_config/opencode.jsonc (rw)")
+            lines.append(f"    Auth: inside env data directory (rw)")
+        
+        lines.append("")
         lines.append("Volume Mounts:")
         lines.append("  Always mounted:")
         lines.append(f"    ✓ WORKSPACE_DIR → /workspace (rw)")
-        env_config = config.get('opencode_env_config', './opencode_config')
-        lines.append(f"    ✓ OPENCODE_ENV_CONFIG: {env_config} → /home/dev/.opencode (rw)")
+        lines.append(f"    ✓ ENV_CONFIG (./opencode_config) → /home/dev/.local/share/opencode (rw)")
         
         # Optional mounts
-        optional_enabled = []
-        optional_disabled = []
-        
-        if config.get('mount_global_config'):
-            global_path = config.get('global_config', '../shared/config/.opencode')
-            optional_enabled.append(f"    ✓ GLOBAL_CONFIG: {global_path} → /home/dev/.config/opencode (ro)")
-        else:
-            optional_disabled.append("    ✗ GLOBAL_CONFIG")
-        
-        if config.get('mount_project_config'):
-            project_path = config.get('project_config', './opencode_project_config')
-            optional_enabled.append(f"    ✓ PROJECT_CONFIG: {project_path} → /home/dev/workspace/.opencode (rw)")
-        else:
-            optional_disabled.append("    ✗ PROJECT_CONFIG")
-        
         if config.get('mount_worktree'):
-            worktree_path = config.get('worktree_dir', './worktree')
-            optional_enabled.append(f"    ✓ WORKTREE_DIR: {worktree_path} → /home/dev/.local/share/opencode/worktree (rw)")
+            worktree_path = config.get('worktree_dir', './workspace.worktrees')
+            lines.append(f"    ✓ WORKTREE_DIR: {worktree_path} → /home/dev/.local/share/opencode/worktree (rw)")
         else:
-            optional_disabled.append("    ✗ WORKTREE_DIR")
-        
-        if config.get('mount_shared_auth', True):
-            optional_enabled.append(f"    ✓ SHARED_AUTH: ../../shared/auth/auth.json → /home/dev/.local/share/opencode/auth.json (ro)")
-        else:
-            optional_disabled.append("    ✗ SHARED_AUTH")
-        
-        if optional_enabled:
-            lines.append("  Optional (enabled):")
-            lines.extend(optional_enabled)
-        
-        if optional_disabled:
-            lines.append("  Optional (disabled):")
-            lines.extend(optional_disabled)
+            lines.append(f"    ✗ WORKTREE_DIR")
         
         lines.append("")
         lines.append("Server Configuration:")

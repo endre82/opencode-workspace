@@ -246,34 +246,19 @@ class ConfigScreen(Screen):
             Input(value="./worktree", placeholder="./worktree", id="input-worktree-dir"),
             "Path to worktree directory",
         )
-        yield from self._create_form_group(
-            "global-config",
-            "Global Config:",
-            Input(value="", placeholder="~/.config/opencode", id="input-global-config"),
-            "Path to global OpenCode config (leave empty to skip)",
-        )
-        yield from self._create_form_group(
-            "project-config",
-            "Project Config:",
-            Input(value="", placeholder="./.opencode", id="input-project-config"),
-            "Path to project-specific config (leave empty to skip)",
-        )
-        yield from self._create_form_group(
-            "opencode-env-config",
-            "Environment Config:",
-            Input(value="./opencode_config", placeholder="./opencode_config", id="input-opencode-env-config"),
-            "Path to environment-specific config",
-        )
+
+        # ── OpenCode Config ──────────────────────────────────────────────────
+        yield Static("OpenCode Config", classes="section-header")
+
+        yield Label("Config Source:", classes="form-label")
+        yield Static("(read-only — change requires environment recreation)", id="display-opencode-config-mode")
+        yield Static("[dim]Mode and paths are set during environment creation[/dim]", classes="form-help")
 
         # ── Volume Mount Control ─────────────────────────────────────────────
         yield Static("Volume Mount Control", classes="section-header")
 
         yield Label("Enabled mounts:", classes="form-label")
-        yield Checkbox("Mount Global Config", value=False, id="check-mount-global")
-        yield Checkbox("Mount Project Config", value=False, id="check-mount-project")
-        yield Checkbox("Mount Environment Config", value=True, id="check-mount-opencode-env")
         yield Checkbox("Mount Worktree Directory", value=True, id="check-mount-worktree")
-        yield Checkbox("Mount Shared Auth Config", value=True, id="check-mount-shared-auth")
         yield Static("[dim]Control which directories are mounted into the container[/dim]", classes="form-help")
 
         # ── Rebuild reminder ─────────────────────────────────────────────────
@@ -343,21 +328,19 @@ class ConfigScreen(Screen):
         # Volumes
         self._set_input_value("input-workspace-dir", config.get("WORKSPACE_DIR", "./workspace"))
         self._set_input_value("input-worktree-dir", config.get("WORKTREE_DIR", "./worktree"))
-        self._set_input_value("input-global-config", config.get("GLOBAL_CONFIG", ""))
-        self._set_input_value("input-project-config", config.get("PROJECT_CONFIG", ""))
-        self._set_input_value("input-opencode-env-config", config.get("OPENCODE_ENV_CONFIG", "./opencode_config"))
+
+        # OpenCode Config (read-only display)
+        mode = config.get("OPENCODE_CONFIG_MODE", "project")
+        jsonc_source = config.get("OPENCODE_JSONC_SOURCE", "./opencode_project_config/opencode.jsonc")
+        try:
+            if display := self.query_one("#display-opencode-config-mode", Static):
+                display.update(f"{mode.upper()}: {jsonc_source}")
+        except Exception:
+            pass
 
         # Mount control
-        if check := self.query_one("#check-mount-global", Checkbox):
-            check.value = self.config_service.get_bool_value(config, "MOUNT_GLOBAL_CONFIG", False)
-        if check := self.query_one("#check-mount-project", Checkbox):
-            check.value = self.config_service.get_bool_value(config, "MOUNT_PROJECT_CONFIG", False)
-        if check := self.query_one("#check-mount-opencode-env", Checkbox):
-            check.value = self.config_service.get_bool_value(config, "MOUNT_OPENCODE_ENV_CONFIG", True)
         if check := self.query_one("#check-mount-worktree", Checkbox):
             check.value = self.config_service.get_bool_value(config, "MOUNT_WORKTREE", True)
-        if check := self.query_one("#check-mount-shared-auth", Checkbox):
-            check.value = self.config_service.get_bool_value(config, "MOUNT_SHARED_AUTH", True)
 
         # Reset change tracking after populating
         self.has_changes = False
@@ -436,22 +419,20 @@ class ConfigScreen(Screen):
         config["WORKSPACE_DIR"] = self._get_input_value("input-workspace-dir", "./workspace")
         config["WORKTREE_DIR"] = self._get_input_value("input-worktree-dir", "./worktree")
 
-        global_config = self._get_input_value("input-global-config")
-        if global_config:
-            config["GLOBAL_CONFIG"] = global_config
-
-        project_config = self._get_input_value("input-project-config")
-        if project_config:
-            config["PROJECT_CONFIG"] = project_config
-
-        config["OPENCODE_ENV_CONFIG"] = self._get_input_value("input-opencode-env-config", "./opencode_config")
+        # Preserve OpenCode config mode and sources (read-only in this UI)
+        if "OPENCODE_CONFIG_MODE" in self.original_config:
+            config["OPENCODE_CONFIG_MODE"] = self.original_config["OPENCODE_CONFIG_MODE"]
+        if "OPENCODE_JSONC_SOURCE" in self.original_config:
+            config["OPENCODE_JSONC_SOURCE"] = self.original_config["OPENCODE_JSONC_SOURCE"]
+        if "OPENCODE_AUTH_SOURCE" in self.original_config:
+            config["OPENCODE_AUTH_SOURCE"] = self.original_config["OPENCODE_AUTH_SOURCE"]
+        if "HOST_OPENCODE_JSONC" in self.original_config:
+            config["HOST_OPENCODE_JSONC"] = self.original_config["HOST_OPENCODE_JSONC"]
+        if "HOST_OPENCODE_AUTH" in self.original_config:
+            config["HOST_OPENCODE_AUTH"] = self.original_config["HOST_OPENCODE_AUTH"]
 
         # Mount control
-        config["MOUNT_GLOBAL_CONFIG"] = "true" if self._get_checkbox_value("check-mount-global") else "false"
-        config["MOUNT_PROJECT_CONFIG"] = "true" if self._get_checkbox_value("check-mount-project") else "false"
-        config["MOUNT_OPENCODE_ENV_CONFIG"] = "true" if self._get_checkbox_value("check-mount-opencode-env") else "false"
         config["MOUNT_WORKTREE"] = "true" if self._get_checkbox_value("check-mount-worktree") else "false"
-        config["MOUNT_SHARED_AUTH"] = "true" if self._get_checkbox_value("check-mount-shared-auth") else "false"
 
         return config
 

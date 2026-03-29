@@ -22,11 +22,14 @@ services:
       - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
       # SSH mount (mandatory - read-only)
       - ${SSH_CONFIG}:/home/dev/.ssh:ro
-      # Optional volumes (uncomment based on MOUNT_* variables in .env)
-      # - ${GLOBAL_CONFIG}:/home/dev/.config/opencode:ro
-      # - ${PROJECT_CONFIG}:/home/dev/workspace/.opencode:rw
+      # OpenCode config file and auth (based on OPENCODE_CONFIG_MODE in .env)
+      # Host or Global mode (read-only):
+      # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:ro
+      # - ${OPENCODE_AUTH_SOURCE}:/home/dev/.local/share/opencode/auth.json:ro
+      # Project mode (read-write):
+      # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:rw
+      # Worktree directory (optional):
       # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
-      # - ${SHARED_AUTH_CONFIG}:/home/dev/.local/share/opencode/auth.json:ro
     ports:
       - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
       - "${CODE_SERVER_PORT}:${CODE_SERVER_PORT}"

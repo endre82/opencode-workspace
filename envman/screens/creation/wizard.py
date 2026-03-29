@@ -228,16 +228,12 @@ class CreationWizard(Screen):
             'timezone': 'UTC',
             'workspace_type': 'isolated',
             'workspace_dir': './workspace',
-            'mount_global_config': False,
-            'mount_project_config': False,
-            'mount_opencode_env_config': True,
             'mount_worktree': True,
-            'mount_shared_auth': True,
-            'global_config': '../shared/config/.opencode',
-            'project_config': './opencode_project_config',
-            'opencode_env_config': './opencode_config',
             'worktree_dir': './workspace.worktrees',
-            'shared_auth_config': '../../shared/auth/auth.json',
+            # OpenCode config mode: host, global, or project
+            'opencode_config_mode': 'project',
+            # OpenCode config path (fixed structure, not user-editable)
+            'opencode_env_config': './opencode_config',
             # ssh_use_host: True = use host ~/.ssh, False = use ./ssh_config
             'ssh_use_host': True,
             'ssh_mode': 'default',  # kept in sync with ssh_use_host by save_current_step
@@ -335,30 +331,9 @@ class CreationWizard(Screen):
         Step 3 — Volume Mounts.
 
         Layout goal: fit as much as possible on screen while keeping a clear
-        scrollable area for the rest.  Each optional mount is a single compact
-        Horizontal row:  [Switch] [Label] [Input] [→ destination]
-        instead of three separate stacked widgets.
+        scrollable area for the rest. Mount rows are single compact Horizontal
+        rows with [Switch] [Label] [Input/Static] [→ destination].
         """
-
-        def _mount_row(
-            switch_id: str,
-            row_id: str,
-            label: str,
-            switch_val: bool,
-            input_id: str,
-            input_val: str,
-            placeholder: str,
-            dest: str,
-        ) -> Horizontal:
-            return Horizontal(
-                Switch(value=switch_val, id=switch_id),
-                Label(label, classes="mount-label"),
-                Input(value=input_val, placeholder=placeholder, id=input_id),
-                Static(dest, classes="dest-hint"),
-                id=row_id,
-                classes="mount-row",
-            )
-
         return Vertical(
             # Inline error bar (hidden until validation fires)
             Static("", id="error-step3"),
@@ -376,40 +351,21 @@ class CreationWizard(Screen):
             # ── Always mounted ───────────────────────────────────────────
             Static("📁 Always Mounted", classes="section-header"),
             Static("  ✓  WORKSPACE_DIR  →  /workspace  (rw)", classes="always-enabled"),
-            # Env config is always mounted but the path is editable
+            # Env config is always mounted with fixed path
             Horizontal(
                 Static("  ✓  ENV_CONFIG", classes="mount-label always-enabled"),
-                Input(
-                    value=self.config['opencode_env_config'],
-                    placeholder="./opencode_config",
-                    id="input-env-path",
-                ),
-                Static("→ /home/dev/.opencode (rw)", classes="dest-hint"),
+                Static(self.config['opencode_env_config'], classes="mount-label"),
+                Static("→ /home/dev/.local/share/opencode (rw)", classes="dest-hint"),
                 classes="mount-row",
             ),
 
-            # ── Optional mounts ──────────────────────────────────────────
-            Static("⚙️  Optional Mounts", classes="section-header"),
-            _mount_row(
-                "switch-global", "row-global", "Global Config",
-                self.config['mount_global_config'],
-                "input-global-path", self.config['global_config'],
-                "../shared/config/.opencode", "→ .opencode-shared (ro)",
-            ),
-            _mount_row(
-                "switch-project", "row-project", "Project Config",
-                self.config['mount_project_config'],
-                "input-project-path", self.config['project_config'],
-                "./opencode_project_config", "→ .opencode-project (rw)",
-            ),
-            # ── Shared auth ──────────────────────────────────────────────
-            Static("🔐 Shared Auth", classes="section-header"),
-            Horizontal(
-                Switch(value=self.config['mount_shared_auth'], id="switch-shared-auth"),
-                Label("auth.json", classes="mount-label"),
-                Static("../../shared/auth/auth.json  →  ~/.opencode/auth.json (ro)", classes="dest-hint"),
-                classes="mount-row",
-                id="row-shared-auth",
+            # ── OpenCode Config Source ──────────────────────────────────
+            Static("⚙️  OpenCode Config Source", classes="section-header"),
+            RadioSet(
+                RadioButton("Host      — ~/.opencode/opencode.jsonc + auth.json  [read-only]", value=self.config['opencode_config_mode'] == 'host'),
+                RadioButton("Global    — shared/config/opencode.jsonc + auth.json  [read-only]", value=self.config['opencode_config_mode'] == 'global'),
+                RadioButton("Project   — ./opencode_project_config/opencode.jsonc  [read-write]", value=self.config['opencode_config_mode'] == 'project'),
+                id="opencode-config-mode",
             ),
         )
 
@@ -496,34 +452,34 @@ class CreationWizard(Screen):
             pass
 
     def _initialize_step_3_states(self) -> None:
-        """Disable inputs whose corresponding switch is off, on first render."""
-        switch_input_map = {
-            "switch-global":  ("input-global-path",  "row-global"),
-            "switch-project": ("input-project-path", "row-project"),
-        }
-        for switch_id, (input_id, row_id) in switch_input_map.items():
-            try:
-                sw  = self.query_one(f"#{switch_id}", Switch)
-                inp = self.query_one(f"#{input_id}",  Input)
-                row = self.query_one(f"#{row_id}",    Horizontal)
-                inp.disabled = not sw.value
-                if not sw.value:
-                    row.add_class("mount-row-disabled")
-            except Exception:
-                pass
+        """Initialize state for step 3 switches (SSH, worktree)."""
+        # SSH switch state initialization (already handled by default value)
+        try:
+            sw  = self.query_one("#switch-ssh-host", Switch)
+            row = self.query_one("#row-ssh",    Horizontal)
+            if not sw.value:
+                row.add_class("mount-row-disabled")
+        except Exception:
+            pass
+        
+        # Worktree switch state initialization
+        try:
+            sw  = self.query_one("#switch-worktree", Switch)
+            inp = self.query_one("#input-worktree-path",  Input)
+            row = self.query_one("#row-worktree",    Horizontal)
+            inp.disabled = not sw.value
+            if not sw.value:
+                row.add_class("mount-row-disabled")
+        except Exception:
+            pass
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
-        switch_input_map = {
-            "switch-global":  ("input-global-path",  "row-global"),
-            "switch-project": ("input-project-path", "row-project"),
-            "switch-worktree":("input-worktree-path","row-worktree"),
-        }
-        sid = event.switch.id
-        if sid in switch_input_map:
-            input_id, row_id = switch_input_map[sid]
+        """Handle switch changes for worktree."""
+        if event.switch.id == "switch-worktree":
             try:
-                self.query_one(f"#{input_id}", Input).disabled = not event.value
-                row = self.query_one(f"#{row_id}", Horizontal)
+                inp = self.query_one("#input-worktree-path", Input)
+                row = self.query_one("#row-worktree", Horizontal)
+                inp.disabled = not event.value
                 row.remove_class("mount-row-disabled") if event.value else row.add_class("mount-row-disabled")
             except Exception:
                 pass
@@ -613,25 +569,10 @@ class CreationWizard(Screen):
         return is_valid
 
     def validate_step_3(self) -> bool:
-        errors = []
-
-        if not self.query_one("#input-env-path", Input).value.strip():
-            errors.append("ENV_CONFIG path is required")
-
-        for switch_id, input_id, name in [
-            ("switch-global",   "input-global-path",  "Global Config"),
-            ("switch-project",  "input-project-path", "Project Config"),
-        ]:
-            try:
-                if self.query_one(f"#{switch_id}", Switch).value:
-                    if not self.query_one(f"#{input_id}", Input).value.strip():
-                        errors.append(f"{name} is enabled but path is empty")
-            except Exception:
-                pass
-
+        """Validate step 3 — volume mounts. RadioSet always has a value, so no validation needed."""
         err_label = self.query_one("#error-step3", Static)
-        err_label.update("❌ " + "  |  ".join(errors) if errors else "")
-        return not errors
+        err_label.update("")
+        return True
 
     def validate_step_4(self) -> bool:
         port = self.query_one("#input-port", Input).value.strip()
@@ -669,12 +610,10 @@ class CreationWizard(Screen):
                 self.config['ssh_host_path'] = str(Path.home() / '.ssh')
                 self.config['ssh_project_path'] = './ssh_config'
 
-                self.config['opencode_env_config']  = self.query_one("#input-env-path",     Input).value.strip()
-                self.config['mount_global_config']  = self.query_one("#switch-global",       Switch).value
-                self.config['global_config']        = self.query_one("#input-global-path",   Input).value.strip()
-                self.config['mount_project_config'] = self.query_one("#switch-project",      Switch).value
-                self.config['project_config']       = self.query_one("#input-project-path",  Input).value.strip()
-                self.config['mount_shared_auth']    = self.query_one("#switch-shared-auth",  Switch).value
+                # OpenCode config mode (host, global, or project)
+                radio = self.query_one("#opencode-config-mode", RadioSet)
+                modes = ['host', 'global', 'project']
+                self.config['opencode_config_mode'] = modes[radio.pressed_index]
 
             case 4:
                 try:

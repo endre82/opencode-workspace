@@ -63,6 +63,18 @@ Each exception is logged as a single-line JSON object with the following structu
    - Writes JSON entry to log file
    - Calls original exception hook (so app behavior is unchanged)
 
+---
+
+## Core Principles
+
+### No Auto-Commit Policy
+- **NEVER perform automatic git commits** – agents must NOT execute `git add`, `git commit`, or `git push` commands
+- **Analysis is non-invasive** – framework does not modify user's version control or git history
+- **Git usage is read-only only** – agents may only read git history (e.g., `git log`, `git show`) for architectural analysis
+- **No exceptions** – this policy applies to all agents, all phases, and all workflows without exception
+- **Explicit permission requirement** – any future git write operations require explicit user authorization before implementation
+
+
 ## Integration Points
 - **App Initialization**: `envman/app.py` calls `install_global_hook()` in `__init__`
 - **Screen Context**: All screens call `set_context()` in `on_mount()`:
