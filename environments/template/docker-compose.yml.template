@@ -22,6 +22,9 @@ services:
       - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
       # SSH mount (mandatory - read-only)
       - ${SSH_CONFIG}:/home/dev/.ssh:ro
+      # Meridian proxy (in-container) — uncommented when MERIDIAN_ENABLED=true:
+      # - ${MERIDIAN_DIR}:/opt/meridian:ro
+      # - ${CLAUDE_AUTH_DIR}:/home/dev/.claude:ro
       # OpenCode config file and auth (based on OPENCODE_CONFIG_MODE in .env)
       # Host or Global mode (read-only):
       # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:ro
@@ -55,6 +58,11 @@ services:
       - WEBUI_PORT=${WEBUI_PORT:-9096}
       - WEBUI_HOST=${WEBUI_HOST:-0.0.0.0}
       - CONTAINER_NAME=${CONTAINER_NAME}
+      # Meridian proxy — uncommented when MERIDIAN_ENABLED=true:
+      # - MERIDIAN_ENABLED=true
+      # - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-3456}
+      # - ANTHROPIC_BASE_URL=http://127.0.0.1:${CLAUDE_PROXY_PORT:-3456}
+      # - ANTHROPIC_API_KEY=x
     networks:
       opencode-net:
         aliases:

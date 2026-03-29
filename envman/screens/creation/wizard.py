@@ -242,6 +242,7 @@ class CreationWizard(Screen):
             'server_port': str(next_port),
             'server_username': 'opencode',
             'server_password': self.creation_service.generate_random_password(),
+            'meridian_enabled': False,
         }
 
     # ─── Scaffold ──────────────────────────────────────────────────────────────
@@ -366,6 +367,16 @@ class CreationWizard(Screen):
                 RadioButton("Global    — shared/config/opencode.jsonc + auth.json  [read-only]", value=self.config['opencode_config_mode'] == 'global'),
                 RadioButton("Project   — ./opencode_project_config/opencode.jsonc  [read-write]", value=self.config['opencode_config_mode'] == 'project'),
                 id="opencode-config-mode",
+            ),
+
+            # ── Meridian Proxy ───────────────────────────────────────
+            Static("🔌 Anthropic Proxy (Meridian)", classes="section-header"),
+            Horizontal(
+                Switch(value=self.config.get('meridian_enabled', False), id="switch-meridian"),
+                Label("In-container", classes="mount-label"),
+                Static("mounts Meridian + ~/.claude → ANTHROPIC_BASE_URL=http://127.0.0.1:3456", classes="dest-hint"),
+                classes="mount-row",
+                id="row-meridian",
             ),
         )
 
@@ -614,6 +625,9 @@ class CreationWizard(Screen):
                 radio = self.query_one("#opencode-config-mode", RadioSet)
                 modes = ['host', 'global', 'project']
                 self.config['opencode_config_mode'] = modes[radio.pressed_index]
+
+                # Meridian in-container proxy
+                self.config['meridian_enabled'] = self.query_one("#switch-meridian", Switch).value
 
             case 4:
                 try:

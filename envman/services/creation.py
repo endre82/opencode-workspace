@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import secrets
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, Tuple, List
 
@@ -71,6 +72,22 @@ class CreationService:
     def generate_random_password(self, length: int = 16) -> str:
         """Generate a random password"""
         return secrets.token_urlsafe(length)[:length]
+
+    def resolve_meridian_dir(self) -> str:
+        """Resolve the host path to the @rynfar/meridian package via npm root -g"""
+        try:
+            result = subprocess.run(
+                ['npm', 'root', '-g'],
+                capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                npm_root = result.stdout.strip()
+                meridian_path = Path(npm_root) / '@rynfar' / 'meridian'
+                if (meridian_path / 'dist' / 'cli.js').exists():
+                    return str(meridian_path)
+        except Exception:
+            pass
+        return ''
     
     def create_environment(self, config: Dict[str, Any]) -> Tuple[bool, str]:
         """
@@ -109,10 +126,25 @@ class CreationService:
             if mode == 'project':
                 project_config_dir = env_dir / "opencode_project_config"
                 project_config_dir.mkdir(exist_ok=True)
-                # Create empty opencode.jsonc for project mode
                 project_jsonc = project_config_dir / "opencode.jsonc"
                 if not project_jsonc.exists():
-                    project_jsonc.write_text('{}')
+                    if config.get('meridian_enabled', False):
+                        # Pre-configure Anthropic provider to point at in-container Meridian
+                        project_jsonc.write_text(
+                            '{\n'
+                            '  "provider": {\n'
+                            '    "anthropic": {\n'
+                            '      "npm": "@ai-sdk/anthropic",\n'
+                            '      "options": {\n'
+                            '        "baseURL": "http://127.0.0.1:3456",\n'
+                            '        "apiKey": "x"\n'
+                            '      }\n'
+                            '    }\n'
+                            '  }\n'
+                            '}\n'
+                        )
+                    else:
+                        project_jsonc.write_text('{}')
             
             # Create worktree directory if mounting is enabled
             if config.get('mount_worktree') and config.get('worktree_dir'):
@@ -210,7 +242,16 @@ class CreationService:
         
         for old, new in replacements:
             content = content.replace(old, new)
-        
+
+        # Meridian proxy variables
+        meridian_enabled = config.get('meridian_enabled', False)
+        content = re.sub(r'^MERIDIAN_ENABLED=.*$', f'MERIDIAN_ENABLED={"true" if meridian_enabled else "false"}', content, flags=re.MULTILINE)
+        if meridian_enabled:
+            meridian_dir = self.resolve_meridian_dir()
+            claude_auth_dir = str(Path.home() / '.claude')
+            content = re.sub(r'^MERIDIAN_DIR=.*$', f'MERIDIAN_DIR={meridian_dir}', content, flags=re.MULTILINE)
+            content = re.sub(r'^CLAUDE_AUTH_DIR=.*$', f'CLAUDE_AUTH_DIR={claude_auth_dir}', content, flags=re.MULTILINE)
+
         # Handle passwords with regex to avoid substring collisions:
         # "CODE_SERVER_PASSWORD=" is a substring of "OPENCODE_SERVER_PASSWORD=",
         # so we use regex patterns to match only at the start of lines.
@@ -258,7 +299,18 @@ class CreationService:
                 '      # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw',
                 '      - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw'
             )
-        
+
+        # Uncomment Meridian volume and environment blocks if enabled
+        if config.get('meridian_enabled', False):
+            content = content.replace(
+                '      # - ${MERIDIAN_DIR}:/opt/meridian:ro\n      # - ${CLAUDE_AUTH_DIR}:/home/dev/.claude:ro',
+                '      - ${MERIDIAN_DIR}:/opt/meridian:ro\n      - ${CLAUDE_AUTH_DIR}:/home/dev/.claude:ro'
+            )
+            content = content.replace(
+                '      # - MERIDIAN_ENABLED=true\n      # - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-3456}\n      # - ANTHROPIC_BASE_URL=http://127.0.0.1:${CLAUDE_PROXY_PORT:-3456}\n      # - ANTHROPIC_API_KEY=x',
+                '      - MERIDIAN_ENABLED=true\n      - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-3456}\n      - ANTHROPIC_BASE_URL=http://127.0.0.1:${CLAUDE_PROXY_PORT:-3456}\n      - ANTHROPIC_API_KEY=x'
+            )
+
         with open(target_path, 'w') as f:
             f.write(content)
     
@@ -323,4 +375,21 @@ class CreationService:
         lines.append(f"  Username: {config['server_username']}")
         lines.append(f"  Password: {'*' * len(config['server_password'])}")
         
+        lines.append("")
+        lines.append("Meridian Proxy (in-container):")
+        if config.get('meridian_enabled', False):
+            meridian_dir = self.resolve_meridian_dir()
+            claude_auth_dir = str(Path.home() / '.claude')
+            if meridian_dir:
+                lines.append(f"  ✓ enabled")
+                lines.append(f"    Package:  {meridian_dir}")
+                lines.append(f"    Auth:     {claude_auth_dir}")
+                lines.append(f"    Port:     3456")
+                lines.append(f"    ANTHROPIC_BASE_URL=http://127.0.0.1:3456")
+            else:
+                lines.append(f"  ⚠ enabled but @rynfar/meridian not found via npm root -g")
+                lines.append(f"    Set MERIDIAN_DIR manually in .env after creation")
+        else:
+            lines.append("  ✗ disabled")
+
         return "\n".join(lines)

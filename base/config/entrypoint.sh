@@ -89,6 +89,38 @@ if [ "${WEBUI_ENABLED:-true}" = "true" ]; then
     fi
 fi
 
+# Start Meridian proxy if enabled
+if [ "${MERIDIAN_ENABLED:-false}" = "true" ]; then
+    echo "🔌 Starting Meridian proxy on port ${CLAUDE_PROXY_PORT:-3456}..."
+
+    if [ ! -f /opt/meridian/dist/cli.js ]; then
+        echo "❌ Meridian not found at /opt/meridian/dist/cli.js"
+        echo "   Check that MERIDIAN_DIR in .env points to a valid @rynfar/meridian installation."
+        echo "   On the host, run: npm root -g"
+        echo "   Continuing without Meridian — Anthropic API calls will fail."
+    else
+        if [ ! -d /home/dev/.claude ] || [ -z "$(ls -A /home/dev/.claude 2>/dev/null)" ]; then
+            echo "⚠️  Claude auth directory is missing or empty at /home/dev/.claude"
+            echo "   Meridian will start but authentication may fail."
+            echo "   Run 'claude login' on the host to authenticate."
+        fi
+
+        nohup node /opt/meridian/dist/cli.js > /home/dev/.local/share/opencode/meridian.log 2>&1 &
+        MERIDIAN_PID=$!
+
+        sleep 2
+
+        if ps -p $MERIDIAN_PID > /dev/null 2>&1; then
+            echo "✅ Meridian started (PID: $MERIDIAN_PID) on port ${CLAUDE_PROXY_PORT:-3456}"
+            echo "   Logs: /home/dev/.local/share/opencode/meridian.log"
+        else
+            echo "❌ Meridian failed to start. Check logs:"
+            echo "   /home/dev/.local/share/opencode/meridian.log"
+            tail -5 /home/dev/.local/share/opencode/meridian.log 2>/dev/null || true
+        fi
+    fi
+fi
+
 # Start OpenCode server if enabled
 if [ "${OPENCODE_SERVER_ENABLED}" = "true" ]; then
     echo "Starting OpenCode server on ${OPENCODE_SERVER_HOST}:${OPENCODE_SERVER_PORT}"

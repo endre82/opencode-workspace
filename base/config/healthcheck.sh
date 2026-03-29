@@ -36,4 +36,13 @@ if [ "${WEBUI_ENABLED:-true}" = "true" ]; then
     fi
 fi
 
+# Check if Meridian is running (if enabled)
+if [ "${MERIDIAN_ENABLED:-false}" = "true" ]; then
+    MERIDIAN_PORT="${CLAUDE_PROXY_PORT:-3456}"
+    if ! curl -s "http://127.0.0.1:${MERIDIAN_PORT}/health" > /dev/null 2>&1; then
+        echo "Meridian proxy health check failed"
+        exit 1
+    fi
+fi
+
 exit 0
