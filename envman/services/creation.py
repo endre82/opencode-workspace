@@ -1,6 +1,7 @@
 """Environment creation service"""
 
 import os
+import re
 import shutil
 import secrets
 from pathlib import Path
@@ -103,6 +104,13 @@ class CreationService:
             (env_dir / "workspace").mkdir(exist_ok=True)
             (env_dir / "opencode_config").mkdir(exist_ok=True)
             
+            # Create worktree directory if mounting is enabled
+            if config.get('mount_worktree') and config.get('worktree_dir'):
+                worktree_path = Path(config['worktree_dir']).expanduser()
+                if not worktree_path.is_absolute():
+                    worktree_path = env_dir / worktree_path
+                worktree_path.mkdir(parents=True, exist_ok=True)
+            
             # Create shared directories if needed
             (self.shared_dir / "config").mkdir(parents=True, exist_ok=True)
             (self.shared_dir / "models").mkdir(parents=True, exist_ok=True)
@@ -146,39 +154,40 @@ class CreationService:
         else:  # project mode
             ssh_config_path = config.get("ssh_project_path", "./ssh_config")
         
-        # Replace configuration values
-        replacements = {
-            'USER_ID=1000': f'USER_ID={int(config["user_id"])}',
-            'GROUP_ID=1000': f'GROUP_ID={int(config["group_id"])}',
-            'TIMEZONE=UTC': f'TIMEZONE={config.get("timezone", "UTC")}',
-            'CONTAINER_NAME=opencode-{{ENV_NAME}}': f'CONTAINER_NAME=opencode-{env_name}',
-            'HOSTNAME=opencode-{{ENV_NAME}}': f'HOSTNAME=opencode-{env_name}',
-            'OPENCODE_SERVER_PORT=4096': f'OPENCODE_SERVER_PORT={int(config["server_port"])}',
-            'OPENCODE_SERVER_USERNAME=opencode': f'OPENCODE_SERVER_USERNAME={config["server_username"]}',
-            'OPENCODE_SERVER_PASSWORD=': f'OPENCODE_SERVER_PASSWORD={config["server_password"]}',
-            'WORKSPACE_DIR=./workspace': f'WORKSPACE_DIR={config["workspace_dir"]}',
-            'GLOBAL_CONFIG=../shared/config/.opencode': f'GLOBAL_CONFIG={config.get("global_config", "../shared/config/.opencode")}',
-            'PROJECT_CONFIG=./opencode_project_config': f'PROJECT_CONFIG={config.get("project_config", "./opencode_project_config")}',
-            'OPENCODE_ENV_CONFIG=./opencode_config': f'OPENCODE_ENV_CONFIG={config.get("opencode_env_config", "./opencode_config")}',
-            'WORKTREE_DIR=./worktree': f'WORKTREE_DIR={config.get("worktree_dir", "./worktree")}',
-            'SHARED_AUTH_CONFIG=../../shared/auth/auth.json': f'SHARED_AUTH_CONFIG={config.get("shared_auth_config", "../../shared/auth/auth.json")}',
-            'MOUNT_GLOBAL_CONFIG=false': f'MOUNT_GLOBAL_CONFIG={str(config.get("mount_global_config", False)).lower()}',
-            'MOUNT_PROJECT_CONFIG=false': f'MOUNT_PROJECT_CONFIG={str(config.get("mount_project_config", False)).lower()}',
-            'MOUNT_OPENCODE_ENV_CONFIG=true': f'MOUNT_OPENCODE_ENV_CONFIG={str(config.get("mount_opencode_env_config", True)).lower()}',
-            'MOUNT_SHARED_AUTH=true': f'MOUNT_SHARED_AUTH={str(config.get("mount_shared_auth", True)).lower()}',
-            'SSH_MODE=default': f'SSH_MODE={ssh_mode}',
-            'SSH_HOST_PATH=/home/endre/.ssh': f'SSH_HOST_PATH={config.get("ssh_host_path", str(Path.home() / ".ssh"))}',
-            'SSH_PROJECT_PATH=./ssh_config': f'SSH_PROJECT_PATH={config.get("ssh_project_path", "./ssh_config")}',
-            'SSH_CONFIG=/home/endre/.ssh': f'SSH_CONFIG={ssh_config_path}',
-        }
+        # Build replacements list
+        replacements = [
+            ('USER_ID=1000', f'USER_ID={int(config["user_id"])}'),
+            ('GROUP_ID=1000', f'GROUP_ID={int(config["group_id"])}'),
+            ('TIMEZONE=UTC', f'TIMEZONE={config.get("timezone", "UTC")}'),
+            ('OPENCODE_SERVER_PORT=4096', f'OPENCODE_SERVER_PORT={int(config["server_port"])}'),
+            ('OPENCODE_SERVER_USERNAME=opencode', f'OPENCODE_SERVER_USERNAME={config["server_username"]}'),
+            ('CODE_SERVER_PORT=8096', f'CODE_SERVER_PORT={int(config["server_port"]) + 4000}'),
+            ('WEBUI_PORT=9096', f'WEBUI_PORT={int(config["server_port"]) + 5000}'),
+            ('WORKSPACE_DIR=./workspace', f'WORKSPACE_DIR={config["workspace_dir"]}'),
+            ('GLOBAL_CONFIG=../shared/config/.opencode', f'GLOBAL_CONFIG={config.get("global_config", "../shared/config/.opencode")}'),
+            ('PROJECT_CONFIG=./opencode_project_config', f'PROJECT_CONFIG={config.get("project_config", "./opencode_project_config")}'),
+            ('OPENCODE_ENV_CONFIG=./opencode_config', f'OPENCODE_ENV_CONFIG={config.get("opencode_env_config", "./opencode_config")}'),
+            ('WORKTREE_DIR=${WORKSPACE_DIR}.worktrees', f'WORKTREE_DIR={config.get("worktree_dir", "./workspace.worktrees")}'),
+            ('SHARED_AUTH_CONFIG=../../shared/auth/auth.json', f'SHARED_AUTH_CONFIG={config.get("shared_auth_config", "../../shared/auth/auth.json")}'),
+            ('MOUNT_GLOBAL_CONFIG=false', f'MOUNT_GLOBAL_CONFIG={str(config.get("mount_global_config", False)).lower()}'),
+            ('MOUNT_PROJECT_CONFIG=false', f'MOUNT_PROJECT_CONFIG={str(config.get("mount_project_config", False)).lower()}'),
+            ('MOUNT_OPENCODE_ENV_CONFIG=true', f'MOUNT_OPENCODE_ENV_CONFIG={str(config.get("mount_opencode_env_config", True)).lower()}'),
+            ('MOUNT_SHARED_AUTH=true', f'MOUNT_SHARED_AUTH={str(config.get("mount_shared_auth", True)).lower()}'),
+            ('SSH_MODE=default', f'SSH_MODE={ssh_mode}'),
+            ('SSH_HOST_PATH=/home/endre/.ssh', f'SSH_HOST_PATH={config.get("ssh_host_path", str(Path.home() / ".ssh"))}'),
+            ('SSH_PROJECT_PATH=./ssh_config', f'SSH_PROJECT_PATH={config.get("ssh_project_path", "./ssh_config")}'),
+            ('SSH_CONFIG=/home/endre/.ssh', f'SSH_CONFIG={ssh_config_path}'),
+        ]
         
-        # Calculate code-server port (server_port + 4000)
-        code_server_port = int(config["server_port"]) + 4000
-        replacements['CODE_SERVER_PORT=8096'] = f'CODE_SERVER_PORT={code_server_port}'
-        replacements['CODE_SERVER_PASSWORD='] = f'CODE_SERVER_PASSWORD={config["server_password"]}'
-        
-        for old, new in replacements.items():
+        for old, new in replacements:
             content = content.replace(old, new)
+        
+        # Handle passwords with regex to avoid substring collisions:
+        # "CODE_SERVER_PASSWORD=" is a substring of "OPENCODE_SERVER_PASSWORD=",
+        # so we use regex patterns to match only at the start of lines.
+        server_password = config["server_password"]
+        content = re.sub(r'^OPENCODE_SERVER_PASSWORD=.*$', f'OPENCODE_SERVER_PASSWORD={server_password}', content, flags=re.MULTILINE)
+        content = re.sub(r'^CODE_SERVER_PASSWORD=.*$', f'CODE_SERVER_PASSWORD={server_password}', content, flags=re.MULTILINE)
         
         with open(target_path, 'w') as f:
             f.write(content)

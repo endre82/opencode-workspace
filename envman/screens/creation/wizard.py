@@ -236,7 +236,7 @@ class CreationWizard(Screen):
             'global_config': '../shared/config/.opencode',
             'project_config': './opencode_project_config',
             'opencode_env_config': './opencode_config',
-            'worktree_dir': './worktree',
+            'worktree_dir': './workspace.worktrees',
             'shared_auth_config': '../../shared/auth/auth.json',
             # ssh_use_host: True = use host ~/.ssh, False = use ./ssh_config
             'ssh_use_host': True,
@@ -319,6 +319,15 @@ class CreationWizard(Screen):
             Label("Workspace Path:"),
             Input(value=self.config['workspace_dir'], placeholder="./workspace or /path/to/external", id="input-workspace-path"),
             Static("Isolated mode creates the workspace inside the environment directory.", id="workspace-help"),
+            Label("Worktree Directory:"),
+            Horizontal(
+                Switch(value=self.config['mount_worktree'], id="switch-worktree"),
+                Label("Enable worktrees", classes="mount-label"),
+                Input(value=self.config['worktree_dir'], placeholder="./workspace.worktrees", id="input-worktree-path"),
+                Static("→ /home/dev/.local/share/opencode/worktree (rw)", classes="dest-hint"),
+                id="row-worktree",
+                classes="mount-row",
+            ),
         )
 
     def _render_step_3(self) -> Vertical:
@@ -393,13 +402,6 @@ class CreationWizard(Screen):
                 "input-project-path", self.config['project_config'],
                 "./opencode_project_config", "→ .opencode-project (rw)",
             ),
-            _mount_row(
-                "switch-worktree", "row-worktree", "Worktree Dir",
-                self.config['mount_worktree'],
-                "input-worktree-path", self.config['worktree_dir'],
-                "./worktree", "→ ~/worktree (rw)",
-            ),
-
             # ── Shared auth ──────────────────────────────────────────────
             Static("🔐 Shared Auth", classes="section-header"),
             Horizontal(
@@ -456,7 +458,9 @@ class CreationWizard(Screen):
         if renderer:
             content.mount(renderer())
 
-        if self.current_step == 3:
+        if self.current_step == 2:
+            self.app.call_later(self._initialize_step_2_states)
+        elif self.current_step == 3:
             self.app.call_later(self._initialize_step_3_states)
 
         # Scroll back to top whenever step changes
@@ -479,12 +483,23 @@ class CreationWizard(Screen):
 
     # ─── Switch state initialisation (step 3) ─────────────────────────────────
 
+    def _initialize_step_2_states(self) -> None:
+        """Disable worktree input if switch is off, on first render of step 2."""
+        try:
+            sw  = self.query_one("#switch-worktree", Switch)
+            inp = self.query_one("#input-worktree-path",  Input)
+            row = self.query_one("#row-worktree",    Horizontal)
+            inp.disabled = not sw.value
+            if not sw.value:
+                row.add_class("mount-row-disabled")
+        except Exception:
+            pass
+
     def _initialize_step_3_states(self) -> None:
         """Disable inputs whose corresponding switch is off, on first render."""
         switch_input_map = {
             "switch-global":  ("input-global-path",  "row-global"),
             "switch-project": ("input-project-path", "row-project"),
-            "switch-worktree":("input-worktree-path","row-worktree"),
         }
         for switch_id, (input_id, row_id) in switch_input_map.items():
             try:
@@ -527,6 +542,21 @@ class CreationWizard(Screen):
             inp.value = str(Path.home() / 'workspace' / project_name) if project_name else str(Path.home() / 'workspace')
         else:  # Isolated selected (index 0)
             inp.value = './workspace'
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Auto-compute worktree path when workspace path changes."""
+        if event.input.id != "input-workspace-path":
+            return
+        try:
+            worktree_inp = self.query_one("#input-worktree-path", Input)
+        except Exception:
+            return
+        
+        workspace_val = event.value.strip()
+        if workspace_val:
+            worktree_inp.value = workspace_val.rstrip('/') + '.worktrees'
+        else:
+            worktree_inp.value = './workspace.worktrees'
 
     # ─── Navigation ────────────────────────────────────────────────────────────
 
@@ -591,7 +621,6 @@ class CreationWizard(Screen):
         for switch_id, input_id, name in [
             ("switch-global",   "input-global-path",  "Global Config"),
             ("switch-project",  "input-project-path", "Project Config"),
-            ("switch-worktree", "input-worktree-path","Worktree Dir"),
         ]:
             try:
                 if self.query_one(f"#{switch_id}", Switch).value:
@@ -630,6 +659,8 @@ class CreationWizard(Screen):
                 radio = self.query_one("#workspace-type", RadioSet)
                 self.config['workspace_type'] = 'isolated' if radio.pressed_index == 0 else 'external'
                 self.config['workspace_dir'] = self.query_one("#input-workspace-path", Input).value.strip()
+                self.config['mount_worktree'] = self.query_one("#switch-worktree", Switch).value
+                self.config['worktree_dir'] = self.query_one("#input-worktree-path", Input).value.strip()
 
             case 3:
                 # SSH: switch on = host ~/.ssh, switch off = ./ssh_config
@@ -643,8 +674,6 @@ class CreationWizard(Screen):
                 self.config['global_config']        = self.query_one("#input-global-path",   Input).value.strip()
                 self.config['mount_project_config'] = self.query_one("#switch-project",      Switch).value
                 self.config['project_config']       = self.query_one("#input-project-path",  Input).value.strip()
-                self.config['mount_worktree']       = self.query_one("#switch-worktree",     Switch).value
-                self.config['worktree_dir']         = self.query_one("#input-worktree-path", Input).value.strip()
                 self.config['mount_shared_auth']    = self.query_one("#switch-shared-auth",  Switch).value
 
             case 4:
