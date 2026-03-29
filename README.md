@@ -118,6 +118,23 @@ opencode-workspace/
 - Docker integration
 - Keyboard-driven navigation
 
+**Dashboard keyboard shortcuts** (press `?` in the TUI for the full reference):
+
+| Key | Action |
+|-----|--------|
+| `n` | New environment |
+| `s` / `x` | Start / Stop |
+| `r` / `b` | Restart / Build |
+| `l` | View logs |
+| `c` | Configure (.env) |
+| `i` | Inspect container |
+| `d` | Delete |
+| `w` | Open OpenCode web UI |
+| `v` | Open VSCode web UI |
+| `C` (Shift+C) | Copy remote connect command (running only) |
+| `R` | Refresh list |
+| `?` | Help |
+
 ### Remote Connection Helper
 
 - Interactive environment selection

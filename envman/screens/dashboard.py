@@ -21,6 +21,7 @@ from envman.services.discovery import DiscoveryService
 from envman.utils.exceptions import DockerError
 from envman.utils.exception_logger import set_context
 from envman.utils.browser import open_url
+from envman.screens.modals.copy_command import CopyCommandModal
 from typing import List, Optional
 
 
@@ -45,6 +46,7 @@ class Dashboard(Screen):
         Binding("i", "inspect_environment", "Inspect", show=False),
         Binding("w", "open_opencode_web", "OpenCode Web", show=False),
         Binding("v", "open_vscode_web", "VSCode Web", show=False),
+        Binding("C", "copy_command", "Copy Command", show=False),
     ]
 
     def check_action(self, action: str, parameters: tuple) -> bool | None:
@@ -53,7 +55,7 @@ class Dashboard(Screen):
             "start_environment", "stop_environment", "view_logs",
             "configure_environment", "delete_environment",
             "restart_environment", "build_environment", "inspect_environment",
-            "open_opencode_web", "open_vscode_web",
+            "open_opencode_web", "open_vscode_web", "copy_command",
         }
         if action in env_actions and not self.environments:
             return False  # disabled + hidden from footer
@@ -461,6 +463,30 @@ class Dashboard(Screen):
             self.notify(f"Opening VSCode at {env.code_server_url}", severity="information")
         except Exception as e:
             self.notify(f"Failed to open browser: {e}", severity="error")
+
+    def action_copy_command(self) -> None:
+        env = self._require_env("copy command")
+        if env is None:
+            return
+        if not env.server_enabled or not env.server_port:
+            self.notify(
+                "Server not enabled or port not configured — open Config (c) to set it up",
+                severity="warning",
+            )
+            return
+        if not env.is_running:
+            self.notify(
+                f"{env.name} is not running — start it first to get a connection command",
+                severity="warning",
+            )
+            return
+        self.app.push_screen(
+            CopyCommandModal(
+                command=env.connection_command,
+                title="Remote Connection Command",
+                message="Use this command from your local machine to connect to this OpenCode server:",
+            )
+        )
 
     def action_show_help(self) -> None:
         from envman.screens.modals.help import HelpModal

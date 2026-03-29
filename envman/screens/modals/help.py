@@ -104,8 +104,9 @@ class HelpModal(ModalScreen[None]):
             # ── Web UI ───────────────────────────────────────────────────────
             yield Static(" WEB UI  (environment must be running) ", classes="help-section-label")
             yield Static(_row("w",   "Open OpenCode web UI",  "v",  "Open VSCode web UI"), classes="help-row")
+            yield Static(_row("C",   "Copy remote connect cmd"), classes="help-row")
             yield Static(
-                "       [dim]Both copy the server password to clipboard automatically[/dim]",
+                "       [dim]w/v copy the server password to clipboard automatically[/dim]",
                 classes="help-row",
             )
 
