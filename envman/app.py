@@ -1,5 +1,6 @@
 """Main Textual application"""
 
+import json
 from pathlib import Path
 from textual.app import App
 from textual.widgets import Header, Footer
@@ -69,6 +70,36 @@ class EnvironmentManagerApp(App):
         self.discovery_service: DiscoveryService | None = None
         self.docker_service: DockerService | None = None
     
+    @property
+    def _settings_path(self) -> Path:
+        """Path to the settings file"""
+        return Path.home() / ".local" / "share" / "opencode-workspace" / "settings.json"
+    
+    def _load_settings(self) -> dict:
+        """Load settings from disk, return empty dict if not found or invalid"""
+        try:
+            if self._settings_path.exists():
+                with open(self._settings_path, "r") as f:
+                    return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+        return {}
+    
+    def _save_settings(self, settings: dict) -> None:
+        """Save settings to disk"""
+        try:
+            self._settings_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._settings_path, "w") as f:
+                json.dump(settings, f)
+        except IOError:
+            pass
+    
+    def watch_theme(self, new_theme: str) -> None:
+        """Save theme preference when user changes it"""
+        settings = self._load_settings()
+        settings["theme"] = new_theme
+        self._save_settings(settings)
+    
     def on_error(self, event) -> None:
         """Handle Textual app-level errors and log them."""
         from envman.utils.exception_logger import log_textual_exception
@@ -86,6 +117,14 @@ class EnvironmentManagerApp(App):
     def on_mount(self) -> None:
         """Initialize services and load environments"""
         try:
+            # Restore theme preference
+            settings = self._load_settings()
+            if "theme" in settings:
+                try:
+                    self.theme = settings["theme"]
+                except Exception:
+                    pass  # Invalid theme name, use default
+            
             # Initialize services
             self.docker_service = DockerService()
             self.discovery_service = DiscoveryService(self.base_dir)
