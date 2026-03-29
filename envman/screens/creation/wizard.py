@@ -513,6 +513,21 @@ class CreationWizard(Screen):
             except Exception:
                 pass
 
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        """Handle workspace type selection changes in step 2."""
+        if event.radio_set.id != "workspace-type":
+            return
+        try:
+            inp = self.query_one("#input-workspace-path", Input)
+        except Exception:
+            return
+        
+        if event.index == 1:  # External selected
+            project_name = self.config.get('name', '')
+            inp.value = str(Path.home() / 'workspace' / project_name) if project_name else str(Path.home() / 'workspace')
+        else:  # Isolated selected (index 0)
+            inp.value = './workspace'
+
     # ─── Navigation ────────────────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

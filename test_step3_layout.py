@@ -77,6 +77,23 @@ if clean_css:
 
 print()
 
+# Check scrollbar CSS
+css_start = content.find('#step-content {')
+if css_start != -1:
+    css_end = content.find('\n    }', css_start)
+    css_block = content[css_start:css_end+6]
+    has_scrollbar_gutter = 'scrollbar-gutter: stable' in css_block
+    if has_scrollbar_gutter:
+        print("✓ Scrollbar gutter: stable present in #step-content CSS")
+    else:
+        print("✗ MISSING: scrollbar-gutter: stable in #step-content CSS")
+        clean_css = False
+else:
+    print("✗ Could not find #step-content CSS block")
+    clean_css = False
+
+print()
+
 # Verify compact layout (no excessive newlines)
 excessive_newlines = step_3_code.count('\\n\\n')
 print(f"Excessive newlines (\\n\\n): {excessive_newlines}")
