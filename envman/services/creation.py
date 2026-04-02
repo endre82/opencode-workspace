@@ -207,6 +207,12 @@ class CreationService:
             (env_dir / "workspace").mkdir(exist_ok=True)
             (env_dir / "opencode_config").mkdir(exist_ok=True)
             
+            # Create external workspace directory if needed (prevents Docker from creating it as root)
+            workspace_dir = config.get('workspace_dir', './workspace')
+            resolved_workspace = Path(workspace_dir).expanduser()
+            if resolved_workspace.is_absolute():
+                resolved_workspace.mkdir(parents=True, exist_ok=True)
+            
             # Create project config directory and file if in project mode
             mode = config.get('opencode_config_mode', 'project')
             if mode == 'project':
