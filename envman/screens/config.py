@@ -14,6 +14,7 @@ from rich.text import Text
 
 from envman.models.environment import Environment
 from envman.services.config import ConfigService
+from envman.services.creation import CreationService
 from envman.utils.exceptions import ConfigurationError
 from envman.utils.exception_logger import set_context
 from envman.screens.modals.copy_command import CopyCommandModal
@@ -121,6 +122,7 @@ class ConfigScreen(Screen):
         super().__init__()
         self.environment = environment
         self.config_service = ConfigService()
+        self.creation_service = CreationService(self.environment.path.parent.parent)
         self.original_config: Dict[str, Any] = {}
         self.has_changes = False
 
@@ -148,6 +150,7 @@ class ConfigScreen(Screen):
                 yield Button("Reset", variant="default", id="btn-reset")
                 yield Button("Backup", variant="default", id="btn-backup")
                 yield Button("Copy Command", variant="success", id="btn-copy-command")
+                yield Button("Migrate Mounts", variant="warning", id="btn-migrate-mounts")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
         yield Footer()
@@ -564,6 +567,14 @@ class ConfigScreen(Screen):
             )
         )
 
+    async def action_migrate_mounts(self) -> None:
+        success, message = await asyncio.to_thread(
+            self.creation_service.migrate_plugins_skills,
+            self.environment.path,
+        )
+        severity = "success" if success else "error"
+        self.notify(message, severity=severity)
+
     def action_close(self) -> None:
         if self.has_changes:
             def on_confirm(confirmed: bool) -> None:
@@ -593,6 +604,8 @@ class ConfigScreen(Screen):
             await self.action_backup()
         elif button_id == "btn-copy-command":
             self.action_copy_command()
+        elif button_id == "btn-migrate-mounts":
+            await self.action_migrate_mounts()
         elif button_id == "btn-cancel":
             self.action_close()
 

@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     wget \
+    bash-completion \
     vim \
     openssh-client \
     ca-certificates \
@@ -50,6 +51,7 @@ RUN mkdir -p /home/dev/.local \
     && mkdir -p /home/dev/.config/opencode \
     && mkdir -p /home/dev/.config/code-server \
     && mkdir -p /home/dev/.local/share/opencode \
+    && mkdir -p /home/dev/.local/share/code-server \
     && chown -R dev:dev /home/dev
 
 # Install Node.js 24 via NodeSource (system-wide)

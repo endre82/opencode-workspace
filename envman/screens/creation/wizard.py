@@ -243,6 +243,7 @@ class CreationWizard(Screen):
             'server_username': 'opencode',
             'server_password': self.creation_service.generate_random_password(),
             'meridian_enabled': False,
+            'vscode_profile_sharing': True,
         }
 
     # ─── Scaffold ──────────────────────────────────────────────────────────────
@@ -377,6 +378,16 @@ class CreationWizard(Screen):
                 Static("mounts Meridian + ~/.claude → ANTHROPIC_BASE_URL=http://127.0.0.1:3456", classes="dest-hint"),
                 classes="mount-row",
                 id="row-meridian",
+            ),
+
+            # ── VS Code Profile Sharing ──────────────────────────────
+            Static("🖥️  VS Code Profile", classes="section-header"),
+            Horizontal(
+                Switch(value=self.config.get('vscode_profile_sharing', True), id="switch-vscode-profile"),
+                Label("Share profile", classes="mount-label"),
+                Static("shared/vscode/{extensions,User} → ~/.local/share/code-server/ (rw)", classes="dest-hint"),
+                classes="mount-row",
+                id="row-vscode-profile",
             ),
         )
 
@@ -628,6 +639,9 @@ class CreationWizard(Screen):
 
                 # Meridian in-container proxy
                 self.config['meridian_enabled'] = self.query_one("#switch-meridian", Switch).value
+
+                # VS Code profile sharing
+                self.config['vscode_profile_sharing'] = self.query_one("#switch-vscode-profile", Switch).value
 
             case 4:
                 try:

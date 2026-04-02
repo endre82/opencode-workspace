@@ -20,6 +20,9 @@ services:
       - ../../envman:/home/dev/envman:ro
       # Namespace mounts (read-only for safety)
       - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
+      # OpenCode plugins and skills (always mounted, read-only)
+      - ${OPENCODE_PLUGINS_DIR}:/home/dev/.opencode/plugins:ro
+      - ${OPENCODE_SKILLS_DIR}:/home/dev/.opencode/skills:ro
       # SSH mount (mandatory - read-only)
       - ${SSH_CONFIG}:/home/dev/.ssh:ro
       # Meridian proxy (in-container) — uncommented when MERIDIAN_ENABLED=true:
@@ -33,6 +36,9 @@ services:
       # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:rw
       # Worktree directory (optional):
       # - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
+      # VS Code profile sharing (shared extensions + settings):
+      # - ${VSCODE_SHARED_EXTENSIONS_DIR}:/home/dev/.local/share/code-server/extensions:rw
+      # - ${VSCODE_SHARED_USER_DIR}:/home/dev/.local/share/code-server/User:rw
     ports:
       - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
       - "${CODE_SERVER_PORT}:${CODE_SERVER_PORT}"

@@ -89,6 +89,92 @@ class CreationService:
             pass
         return ''
     
+    def migrate_plugins_skills(self, env_dir: Path) -> Tuple[bool, str]:
+        """Add plugins/skills volume mounts to an existing environment's .env and docker-compose.yml."""
+        plugins_host = str(Path.home() / '.opencode' / 'plugins')
+        skills_host = str(Path.home() / '.opencode' / 'skills')
+        plugins_mount = '      - ${OPENCODE_PLUGINS_DIR}:/home/dev/.opencode/plugins:ro'
+        skills_mount = '      - ${OPENCODE_SKILLS_DIR}:/home/dev/.opencode/skills:ro'
+
+        env_file = env_dir / '.env'
+        compose_file = env_dir / 'docker-compose.yml'
+
+        if not env_file.exists():
+            return False, f".env not found in {env_dir}"
+        if not compose_file.exists():
+            return False, f"docker-compose.yml not found in {env_dir}"
+
+        # Ensure host directories exist
+        (Path.home() / '.opencode' / 'plugins').mkdir(parents=True, exist_ok=True)
+        (Path.home() / '.opencode' / 'skills').mkdir(parents=True, exist_ok=True)
+
+        # Backup files before modification
+        env_backup = env_file.with_suffix('.env.backup')
+        compose_backup = compose_file.with_suffix('.yml.backup')
+        if not env_backup.exists():
+            shutil.copy2(env_file, env_backup)
+        if not compose_backup.exists():
+            shutil.copy2(compose_file, compose_backup)
+
+        # Patch .env
+        env_content = env_file.read_text()
+        env_changed = False
+        if 'OPENCODE_PLUGINS_DIR' not in env_content:
+            env_content = env_content.rstrip('\n') + f'\nOPENCODE_PLUGINS_DIR={plugins_host}\n'
+            env_changed = True
+        if 'OPENCODE_SKILLS_DIR' not in env_content:
+            env_content = env_content.rstrip('\n') + f'\nOPENCODE_SKILLS_DIR={skills_host}\n'
+            env_changed = True
+        if env_changed:
+            env_file.write_text(env_content)
+
+        # Patch docker-compose.yml (skip if mounts already present)
+        compose_content = compose_file.read_text()
+        compose_changed = False
+        if '/.opencode/plugins:ro' not in compose_content:
+            new_block = (
+                '      # OpenCode plugins and skills (always mounted, read-only)\n'
+                f'{plugins_mount}\n'
+                f'{skills_mount}'
+            )
+            # Anchor 1: after namespace global mount line
+            namespace_anchor = '      - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro'
+            if namespace_anchor in compose_content:
+                compose_content = compose_content.replace(
+                    namespace_anchor,
+                    f'{namespace_anchor}\n{new_block}'
+                )
+                compose_changed = True
+            else:
+                # Anchor 2: before SSH mount line
+                ssh_anchor = '      - ${SSH_CONFIG}:/home/dev/.ssh:ro'
+                if ssh_anchor in compose_content:
+                    compose_content = compose_content.replace(
+                        ssh_anchor,
+                        f'{new_block}\n{ssh_anchor}'
+                    )
+                    compose_changed = True
+                else:
+                    # Fallback: insert before ports block
+                    ports_anchor = '    ports:'
+                    if ports_anchor in compose_content:
+                        compose_content = compose_content.replace(
+                            ports_anchor,
+                            f'{new_block}\n{ports_anchor}',
+                            1
+                        )
+                        compose_changed = True
+                    else:
+                        return False, "Could not find an insertion point in docker-compose.yml"
+
+        if compose_changed:
+            compose_file.write_text(compose_content)
+
+        if not env_changed and not compose_changed:
+            return True, "Already up to date — plugins/skills mounts already present"
+
+        return True, "Migration complete — restart container for changes to take effect"
+
     def create_environment(self, config: Dict[str, Any]) -> Tuple[bool, str]:
         """
         Create new environment with given configuration
@@ -157,6 +243,15 @@ class CreationService:
             (self.shared_dir / "config").mkdir(parents=True, exist_ok=True)
             (self.shared_dir / "models").mkdir(parents=True, exist_ok=True)
             (self.shared_dir / "auth").mkdir(parents=True, exist_ok=True)
+
+            # Ensure host plugins and skills directories exist (Docker requires source to exist)
+            (Path.home() / ".opencode" / "plugins").mkdir(parents=True, exist_ok=True)
+            (Path.home() / ".opencode" / "skills").mkdir(parents=True, exist_ok=True)
+
+            # Create shared VS Code profile directories if enabled
+            if config.get('vscode_profile_sharing', True):
+                (self.shared_dir / "vscode" / "extensions").mkdir(parents=True, exist_ok=True)
+                (self.shared_dir / "vscode" / "User").mkdir(parents=True, exist_ok=True)
             
             # Create global opencode.jsonc and auth.json if in global mode
             if mode == 'global':
@@ -226,6 +321,8 @@ class CreationService:
             ('OPENCODE_ENV_CONFIG=./opencode_config', f'OPENCODE_ENV_CONFIG=./opencode_config'),  # always ./opencode_config
             ('HOST_OPENCODE_JSONC=/home/endre/.opencode/opencode.jsonc', f'HOST_OPENCODE_JSONC={str(Path.home() / ".opencode" / "opencode.jsonc")}'),
             ('HOST_OPENCODE_AUTH=/home/endre/.local/share/opencode/auth.json', f'HOST_OPENCODE_AUTH={str(Path.home() / ".local" / "share" / "opencode" / "auth.json")}'),
+            ('OPENCODE_PLUGINS_DIR=/home/endre/.opencode/plugins', f'OPENCODE_PLUGINS_DIR={str(Path.home() / ".opencode" / "plugins")}'),
+            ('OPENCODE_SKILLS_DIR=/home/endre/.opencode/skills', f'OPENCODE_SKILLS_DIR={str(Path.home() / ".opencode" / "skills")}'),
         ]
         
         # Add mode-specific sources
@@ -243,9 +340,15 @@ class CreationService:
         for old, new in replacements:
             content = content.replace(old, new)
 
+        # VS Code profile sharing
+        vscode_sharing = config.get('vscode_profile_sharing', True)
+        vscode_value = "true" if vscode_sharing else "false"
+        content = re.sub(r'^VSCODE_PROFILE_SHARING=.*$', f'VSCODE_PROFILE_SHARING={vscode_value}', content, flags=re.MULTILINE)
+
         # Meridian proxy variables
         meridian_enabled = config.get('meridian_enabled', False)
-        content = re.sub(r'^MERIDIAN_ENABLED=.*$', f'MERIDIAN_ENABLED={"true" if meridian_enabled else "false"}', content, flags=re.MULTILINE)
+        meridian_value = "true" if meridian_enabled else "false"
+        content = re.sub(r'^MERIDIAN_ENABLED=.*$', f'MERIDIAN_ENABLED={meridian_value}', content, flags=re.MULTILINE)
         if meridian_enabled:
             meridian_dir = self.resolve_meridian_dir()
             claude_auth_dir = str(Path.home() / '.claude')
@@ -311,6 +414,17 @@ class CreationService:
                 '      - MERIDIAN_ENABLED=true\n      - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-3456}\n      - ANTHROPIC_BASE_URL=http://127.0.0.1:${CLAUDE_PROXY_PORT:-3456}\n      - ANTHROPIC_API_KEY=x'
             )
 
+        # Uncomment VS Code profile sharing mounts if enabled
+        if config.get('vscode_profile_sharing', True):
+            content = content.replace(
+                '      # - ${VSCODE_SHARED_EXTENSIONS_DIR}:/home/dev/.local/share/code-server/extensions:rw',
+                '      - ${VSCODE_SHARED_EXTENSIONS_DIR}:/home/dev/.local/share/code-server/extensions:rw'
+            )
+            content = content.replace(
+                '      # - ${VSCODE_SHARED_USER_DIR}:/home/dev/.local/share/code-server/User:rw',
+                '      - ${VSCODE_SHARED_USER_DIR}:/home/dev/.local/share/code-server/User:rw'
+            )
+
         with open(target_path, 'w') as f:
             f.write(content)
     
@@ -361,6 +475,8 @@ class CreationService:
         lines.append("  Always mounted:")
         lines.append(f"    ✓ WORKSPACE_DIR → /workspace (rw)")
         lines.append(f"    ✓ ENV_CONFIG (./opencode_config) → /home/dev/.local/share/opencode (rw)")
+        lines.append(f"    ✓ ~/.opencode/plugins → /home/dev/.opencode/plugins (ro)")
+        lines.append(f"    ✓ ~/.opencode/skills  → /home/dev/.opencode/skills (ro)")
         
         # Optional mounts
         if config.get('mount_worktree'):
@@ -375,6 +491,15 @@ class CreationService:
         lines.append(f"  Username: {config['server_username']}")
         lines.append(f"  Password: {'*' * len(config['server_password'])}")
         
+        lines.append("")
+        lines.append("VS Code Profile Sharing:")
+        if config.get('vscode_profile_sharing', True):
+            lines.append("  ✓ enabled")
+            lines.append("    Extensions: shared/vscode/extensions → /home/dev/.local/share/code-server/extensions (rw)")
+            lines.append("    Settings:   shared/vscode/User       → /home/dev/.local/share/code-server/User (rw)")
+        else:
+            lines.append("  ✗ disabled (per-environment extensions + settings)")
+
         lines.append("")
         lines.append("Meridian Proxy (in-container):")
         if config.get('meridian_enabled', False):
