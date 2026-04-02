@@ -1,0 +1,92 @@
+services:
+  opencode-aaa-my-test-project:
+    build:
+      context: ../../base
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+    image: opencode-workspace:aaa-my-test-project
+    container_name: opencode-aaa-my-test-project
+    hostname: opencode-aaa-my-test-project
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+    volumes:
+      # System and essentials (always mounted)
+      - /etc/localtime:/etc/localtime:ro
+      - ${WORKSPACE_DIR}:/home/dev/workspace:rw
+      - ${OPENCODE_ENV_CONFIG}:/home/dev/.local/share/opencode:rw
+      - ../../base/config/entrypoint.sh:/entrypoint.sh:ro
+      - ../../base/config/healthcheck.sh:/healthcheck.sh:ro
+      # Mount envman package for web UI
+      - ../../envman:/home/dev/envman:ro
+      # Namespace mounts (read-only for safety)
+      - ${NAMESPACE_GLOBAL_DIR}:/home/dev/.opencode/namespaces/global:ro
+      # OpenCode plugins and skills (always mounted, read-only)
+      - ${OPENCODE_PLUGINS_DIR}:/home/dev/.opencode/plugins:ro
+      - ${OPENCODE_SKILLS_DIR}:/home/dev/.opencode/skills:ro
+      # SSH mount (mandatory - read-only)
+      - ${SSH_CONFIG}:/home/dev/.ssh:ro
+      # Meridian proxy (in-container) — uncommented when MERIDIAN_ENABLED=true:
+      - ${MERIDIAN_DIR}:/opt/meridian:ro
+      - ${CLAUDE_AUTH_DIR}:/home/dev/.claude:ro
+      # OpenCode config file and auth (based on OPENCODE_CONFIG_MODE in .env)
+      # Host or Global mode (read-only):
+      - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:ro
+      - ${OPENCODE_AUTH_SOURCE}:/home/dev/.local/share/opencode/auth.json:ro
+      # Project mode (read-write):
+      # - ${OPENCODE_JSONC_SOURCE}:/home/dev/.opencode/opencode.jsonc:rw
+      # Worktree directory (optional):
+      - ${WORKTREE_DIR}:/home/dev/.local/share/opencode/worktree:rw
+    ports:
+      - "${OPENCODE_SERVER_PORT}:${OPENCODE_SERVER_PORT}"
+      - "${CODE_SERVER_PORT}:${CODE_SERVER_PORT}"
+      - "${WEBUI_PORT}:${WEBUI_PORT}"
+    environment:
+      - TZ=${TIMEZONE:-UTC}
+      - OPENCODE_CONFIG_DIR=/home/dev/.config/opencode
+      - SSH_AUTH_SOCK=/ssh-agent
+      - ENV_NAME=aaa-my-test-project
+      - OPENCODE_SERVER_ENABLED=${OPENCODE_SERVER_ENABLED:-true}
+      - OPENCODE_SERVER_HOST=${OPENCODE_SERVER_HOST:-0.0.0.0}
+      - OPENCODE_SERVER_PORT=${OPENCODE_SERVER_PORT:-4096}
+      - OPENCODE_SERVER_USERNAME=${OPENCODE_SERVER_USERNAME:-opencode}
+      - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}
+      - OPENCODE_SERVER_CORS=${OPENCODE_SERVER_CORS}
+      - CODE_SERVER_ENABLED=${CODE_SERVER_ENABLED:-true}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-8096}
+      - CODE_SERVER_AUTH=${CODE_SERVER_AUTH:-password}
+      - CODE_SERVER_PASSWORD=${CODE_SERVER_PASSWORD:-${OPENCODE_SERVER_PASSWORD}}
+      - CODE_SERVER_DISABLE_TELEMETRY=${CODE_SERVER_DISABLE_TELEMETRY:-true}
+      - CODE_SERVER_DISABLE_UPDATE_CHECK=${CODE_SERVER_DISABLE_UPDATE_CHECK:-true}
+      - WEBUI_ENABLED=${WEBUI_ENABLED:-true}
+      - WEBUI_PORT=${WEBUI_PORT:-9096}
+      - WEBUI_HOST=${WEBUI_HOST:-0.0.0.0}
+      - CONTAINER_NAME=${CONTAINER_NAME}
+      # Meridian proxy — uncommented when MERIDIAN_ENABLED=true:
+      - MERIDIAN_ENABLED=true
+      - CLAUDE_PROXY_PORT=${CLAUDE_PROXY_PORT:-3456}
+      - ANTHROPIC_BASE_URL=http://127.0.0.1:${CLAUDE_PROXY_PORT:-3456}
+      - ANTHROPIC_API_KEY=x
+      # Claude SDK session persistence: use writable overlay directory
+      # (set up by entrypoint.sh to avoid read-only mount issues)
+      - CLAUDE_CONFIG_DIR=/home/dev/.claude-local
+    networks:
+      opencode-net:
+        aliases:
+          - aaa-my-test-project.opencode.local
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    entrypoint: ["/entrypoint.sh"]
+    command: ["/bin/bash"]
+
+networks:
+  opencode-net:
+    name: opencode-network
+    driver: bridge
+    external: true

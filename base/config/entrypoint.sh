@@ -89,6 +89,29 @@ if [ "${WEBUI_ENABLED:-true}" = "true" ]; then
     fi
 fi
 
+# Setup writable Claude config directory for SDK session persistence (Meridian)
+# The Claude SDK subprocess needs to persist conversation data between invocations.
+# Since /home/dev/.claude is mounted read-only from the host, we create a writable
+# overlay directory and symlink the credentials file for token refresh synchronization.
+if [ "${MERIDIAN_ENABLED:-false}" = "true" ]; then
+    echo "📁 Setting up writable Claude config directory for session persistence..."
+    mkdir -p /home/dev/.claude-local
+    
+    # Copy config/settings from the read-only host mount (initial sync)
+    if [ -d /home/dev/.claude ]; then
+        cp -a /home/dev/.claude/. /home/dev/.claude-local/ 2>/dev/null || true
+        # Symlink credentials so token refreshes on the host are visible to the container
+        rm -f /home/dev/.claude-local/.credentials.json
+        ln -sf /home/dev/.claude/.credentials.json /home/dev/.claude-local/.credentials.json
+        echo "   ✅ Writable Claude config created at ~/.claude-local"
+    else
+        echo "   ⚠️  /home/dev/.claude not found; session persistence will be limited"
+    fi
+    
+    # Export CLAUDE_CONFIG_DIR so the Claude SDK subprocess uses the writable directory
+    export CLAUDE_CONFIG_DIR=/home/dev/.claude-local
+fi
+
 # Start Meridian proxy if enabled
 if [ "${MERIDIAN_ENABLED:-false}" = "true" ]; then
     echo "🔌 Starting Meridian proxy on port ${CLAUDE_PROXY_PORT:-3456}..."
