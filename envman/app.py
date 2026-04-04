@@ -1,6 +1,7 @@
 """Main Textual application"""
 
 import json
+import atexit
 from pathlib import Path
 from textual.app import App
 from textual.widgets import Header, Footer
@@ -8,6 +9,7 @@ from textual.widgets import Header, Footer
 from envman.screens.dashboard import Dashboard
 from envman.services.discovery import DiscoveryService
 from envman.services.docker import DockerService
+from envman.services.ngrok import NgrokService
 from envman.utils.exceptions import DockerError
 from envman.utils.exception_logger import install_global_hook
 
@@ -69,6 +71,10 @@ class EnvironmentManagerApp(App):
         self.base_dir = base_dir or Path.cwd()
         self.discovery_service: DiscoveryService | None = None
         self.docker_service: DockerService | None = None
+        self.ngrok_service: NgrokService | None = None
+        
+        # Register cleanup on exit
+        atexit.register(self._cleanup)
     
     @property
     def _settings_path(self) -> Path:
@@ -93,6 +99,14 @@ class EnvironmentManagerApp(App):
                 json.dump(settings, f)
         except IOError:
             pass
+    
+    def _cleanup(self) -> None:
+        """Clean up resources on app exit"""
+        if self.ngrok_service:
+            try:
+                self.ngrok_service.cleanup()
+            except Exception:
+                pass  # Silently ignore cleanup errors
     
     def watch_theme(self, new_theme: str) -> None:
         """Save theme preference when user changes it"""
@@ -128,6 +142,7 @@ class EnvironmentManagerApp(App):
             # Initialize services
             self.docker_service = DockerService()
             self.discovery_service = DiscoveryService(self.base_dir)
+            self.ngrok_service = NgrokService()
             
             # Discover environments
             environments = self.discovery_service.discover_environments()
@@ -145,7 +160,8 @@ class EnvironmentManagerApp(App):
                     environments, 
                     self.docker_service, 
                     self.discovery_service,
-                    self.base_dir
+                    self.base_dir,
+                    self.ngrok_service
                 )
             )
         

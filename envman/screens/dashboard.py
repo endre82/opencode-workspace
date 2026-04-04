@@ -18,10 +18,12 @@ except ImportError:
 from envman.models.environment import Environment
 from envman.services.docker import DockerService
 from envman.services.discovery import DiscoveryService
+from envman.services.ngrok import NgrokService
 from envman.utils.exceptions import DockerError
 from envman.utils.exception_logger import set_context
 from envman.utils.browser import open_url
 from envman.screens.modals.copy_command import CopyCommandModal
+from envman.screens.modals.tunnel import TunnelModal
 from typing import List, Optional
 
 
@@ -40,6 +42,7 @@ class Dashboard(Screen):
         Binding("l", "view_logs", "Logs"),
         Binding("c", "configure_environment", "Config"),
         Binding("d", "delete_environment", "Delete"),
+        Binding("t", "tunnel", "Tunnel"),
         # Less common — work via keyboard but not cluttering the footer
         Binding("r", "restart_environment", "Restart", show=False),
         Binding("b", "build_environment", "Build", show=False),
@@ -53,7 +56,7 @@ class Dashboard(Screen):
         """Hide env-specific bindings in the footer when the list is empty."""
         env_actions = {
             "start_environment", "stop_environment", "view_logs",
-            "configure_environment", "delete_environment",
+            "configure_environment", "delete_environment", "tunnel",
             "restart_environment", "build_environment", "inspect_environment",
             "open_opencode_web", "open_vscode_web", "copy_command",
         }
@@ -66,13 +69,15 @@ class Dashboard(Screen):
         environments: List[Environment],
         docker_service: DockerService,
         discovery_service: DiscoveryService,
-        workspace_root: Path
+        workspace_root: Path,
+        ngrok_service: NgrokService,
     ):
         super().__init__()
         self.environments = environments
         self.docker_service = docker_service
         self.discovery_service = discovery_service
         self.workspace_root = workspace_root
+        self.ngrok_service = ngrok_service
 
         set_context(screen="Dashboard")
 
@@ -106,6 +111,7 @@ class Dashboard(Screen):
         table.add_column("Name", width=30)
         table.add_column("Status", width=15)
         table.add_column("Port", width=8)
+        table.add_column("Tunnel", width=8)
         table.add_column("URL", width=40)
 
         self.refresh_table()
@@ -125,9 +131,13 @@ class Dashboard(Screen):
         if not self.environments:
             table.add_row(
                 "[dim]No environments found — press [bold]n[/bold] to create one[/dim]",
-                "", "", "",
+                "", "", "", "",
             )
             return
+
+        # Get current tunnel status
+        tunnel_status = self.ngrok_service.get_status()
+        tunneled_env = tunnel_status["env_name"] if tunnel_status else None
 
         for env in self.environments:
             status_text = Text()
@@ -135,12 +145,14 @@ class Dashboard(Screen):
             status_text.append(env.status.capitalize())
 
             port_str = str(env.server_port) if env.server_port else "N/A"
+            tunnel_indicator = "🔗" if env.name == tunneled_env else ""
             url = env.server_url if env.server_url else "N/A"
 
             table.add_row(
                 env.name,
                 status_text,
                 port_str,
+                tunnel_indicator,
                 url,
                 key=env.name,
             )
@@ -486,6 +498,31 @@ class Dashboard(Screen):
                 title="Remote Connection Command",
                 message="Use this command from your local machine to connect to this OpenCode server:",
             )
+        )
+
+    def action_tunnel(self) -> None:
+        env = self._require_env("tunnel")
+        if env is None:
+            return
+        if not env.is_running:
+            self.notify(
+                f"{env.name} is not running — start it first to create a tunnel",
+                severity="warning",
+            )
+            return
+        if not env.server_enabled or not env.server_port or not env.code_server_port:
+            self.notify(
+                "Server not fully configured — open Config (c) to enable servers",
+                severity="warning",
+            )
+            return
+
+        def on_tunnel_close(result) -> None:
+            self.refresh_table()
+
+        self.app.push_screen(
+            TunnelModal(environment=env, ngrok_service=self.ngrok_service),
+            on_tunnel_close,
         )
 
     def action_show_help(self) -> None:

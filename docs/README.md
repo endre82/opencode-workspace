@@ -16,6 +16,7 @@ Implementation docs for each major feature:
 - [Phase 1: Base System](features/phase1-base-system.md) - Dashboard and core architecture
 - [Phase 3: Container Operations](features/phase3-container-ops.md) - Start/stop/restart functionality
 - [Phase 4: Creation Wizard](features/phase4-creation-wizard.md) - Environment creation flow
+- [ngrok Tunnel Management](features/ngrok-tunneling.md) - Internet access via ngrok tunneling
 - [Feature Index →](features/README.md) - Complete feature list with status
 
 ### 🐛 Bug Fixes
@@ -72,6 +73,7 @@ tests/                       # Test scripts (project root)
 - **Create a new environment** → [Quick Start Guide](guides/quickstart.md)
 - **Use the creation wizard** → [Wizard Guide](guides/wizard-guide.md)
 - **Set up remote development** → [Remote Dev Guide](guides/remote-dev-guide.md)
+- **Access from the internet** → [ngrok Tunnel Guide](features/ngrok-tunneling.md)
 - **Understand container operations** → [Phase 3 Docs](features/phase3-container-ops.md)
 - **See bug fix history** → [Bug Timeline](bugfixes/README.md)
 - **Review all features** → [Feature Index](features/README.md)

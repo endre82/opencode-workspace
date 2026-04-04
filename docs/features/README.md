@@ -47,6 +47,24 @@ This directory contains detailed documentation for each major feature implementa
 - Bug #002: Wizard compose query issue (Fixed ✅)
 - Bug #003: Widget mount lifecycle error (Fixed ✅)
 
+### ngrok Tunnel Management (Complete ✅)
+[📄 Read Documentation](ngrok-tunneling.md)
+
+**Summary:** On-demand ngrok tunneling to expose OpenCode and VSCode over the internet.
+
+**Features:**
+- One-click tunnel start/stop from Dashboard (`t` key)
+- Public URL generation for OpenCode server and VSCode
+- Free tier compatible (single tunnel at a time)
+- Automatic cleanup on app exit
+- Copy URLs + password to clipboard
+- Dashboard tunnel indicator (🔗)
+
+**Key Components:**
+- `envman/services/ngrok.py` — Tunnel lifecycle management
+- `envman/screens/modals/tunnel.py` — TUI modal interface
+- Integration with Dashboard and App
+
 ## Feature Status Overview
 
 | Feature | Phase | Status | Documentation |
@@ -54,6 +72,7 @@ This directory contains detailed documentation for each major feature implementa
 | Base System | Phase 1 | ✅ Complete | [phase1-base-system.md](phase1-base-system.md) |
 | Container Operations | Phase 3 | ✅ Complete | [phase3-container-ops.md](phase3-container-ops.md) |
 | Creation Wizard | Phase 4 | ✅ Complete | [phase4-creation-wizard.md](phase4-creation-wizard.md) |
+| ngrok Tunneling | Recent | ✅ Complete | [ngrok-tunneling.md](ngrok-tunneling.md) |
 
 ## Quick Links
 

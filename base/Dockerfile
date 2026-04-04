@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     bash-completion \
     vim \
+    rsync \
     openssh-client \
     ca-certificates \
     jq \
