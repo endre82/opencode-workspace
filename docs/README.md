@@ -11,6 +11,10 @@ Start here if you're new to the project:
 - [Remote Development Guide](guides/remote-dev-guide.md) - Remote development with code-server
 - [Web UI Guide](user-guides/WEBUI_GUIDE.md) - Web Management UI documentation
 
+### 🏗️ Architecture & Design
+Understand how the system works:
+- [Architecture Reference](architecture/README.md) - Complete technical architecture reference
+
 ### 🏗️ Feature Documentation
 Implementation docs for each major feature:
 - [Phase 1: Base System](features/phase1-base-system.md) - Dashboard and core architecture
@@ -43,6 +47,8 @@ Test scripts are located in `/tests/` at the project root:
 ```
 docs/
 ├── README.md                 # This file
+├── architecture/             # Architecture & design docs
+│   └── README.md            # Technical architecture reference
 ├── features/                 # Feature implementation docs
 │   ├── README.md            # Feature index with status
 │   ├── phase1-base-system.md
@@ -74,6 +80,7 @@ tests/                       # Test scripts (project root)
 - **Use the creation wizard** → [Wizard Guide](guides/wizard-guide.md)
 - **Set up remote development** → [Remote Dev Guide](guides/remote-dev-guide.md)
 - **Access from the internet** → [ngrok Tunnel Guide](features/ngrok-tunneling.md)
+- **Understand the architecture** → [Architecture Reference](architecture/README.md)
 - **Understand container operations** → [Phase 3 Docs](features/phase3-container-ops.md)
 - **See bug fix history** → [Bug Timeline](bugfixes/README.md)
 - **Review all features** → [Feature Index](features/README.md)

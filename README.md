@@ -14,13 +14,17 @@ Think of it as a **personal developer laptop farm** — easily create, manage, a
 
 ## Key Features
 
-- **🌐 Browser-based coding** — VSCode in your browser, access from any device on your network
-- **🖥️ Simple management** — Terminal UI to create, start, stop, and delete environments with a few keypresses
-- **🔒 Full isolation** — Each environment has its own workspace, settings, and AI assistant
-- **🚀 Instant setup** — Create a new environment in minutes with an interactive wizard
-- **📊 Live monitoring** — Dashboard shows status of all environments at a glance
-- **🔐 Secure local network** — Access from any device on your LAN with password protection
-- **📦 Shared resources** — Settings, plugins, and credentials can be shared across environments
+- **🌐 Browser-based coding** — VSCode in your browser via code-server, accessible from any device on your network
+- **🖥️ Terminal UI management** — Create, start, stop, delete, inspect, and configure environments with simple keypresses
+- **🔒 Full isolation** — Each environment has its own workspace, config, and can run independently
+- **🚀 Interactive wizard** — Create new environments in minutes with a guided 4-step setup
+- **📊 Live dashboard** — See status of all environments at a glance; auto-refresh every 30 seconds
+- **🔐 Secure access** — Password-protected OpenCode server and VSCode; optional internet access via ngrok tunnels
+- **📦 Shared tooling** — Install plugins, skills, and VS Code extensions once; use in all environments
+- **🎯 Flexible config** — Three configuration modes (host-wide, workspace-wide, or per-environment)
+- **🤖 AI assistance** — Built-in OpenCode AI assistant; optional in-container Meridian proxy for offline use
+- **📝 Configuration editing** — Edit `.env` settings through the TUI; changes backed up automatically
+- **🔌 Remote tunneling** — On-demand ngrok tunnels for public internet access (free tier)
 
 ## 🎨 [Visual Overview](overview.html)
 
@@ -66,18 +70,23 @@ From the environment list, just press a key:
 | `l` | View live logs |
 | `c` | Edit configuration |
 | `d` | Delete environment |
+| `t` | Create internet tunnel (ngrok) |
 | `w` | Open OpenCode web UI |
 | `v` | Open VSCode in browser |
+| `i` | Inspect container details |
 | `?` | Help |
 
 ## What's Inside Each Environment
 
-Each environment is a containerized workspace containing:
-- **OpenCode** — an AI coding assistant
-- **VSCode** — accessible in your browser for remote coding
-- **Linux shell** — for command-line tools
-- **Your workspace** — isolated project files that persist between restarts
-- **Shared config** — optional shared settings, plugins, and credentials across all environments
+Each environment is a containerized Ubuntu workspace containing:
+- **OpenCode** — AI coding assistant accessible via browser or command-line
+- **code-server** — VSCode running in your browser for remote coding
+- **Web Management UI** — Built-in dashboard for service monitoring and logs
+- **Linux shell** — Full Ubuntu 24.04 with Node.js, git, and standard dev tools
+- **Your workspace** — Isolated project files persisting between container restarts
+- **Shared resources** — Plugins, skills, and VS Code extensions shared across environments (optional)
+- **Meridian proxy** — Optional in-container Anthropic API proxy for Claude without hardcoding keys
+- **Shared config modes** — Choose between host-wide, workspace-wide, or per-environment configuration
 
 ## Common Workflows
 
@@ -145,9 +154,17 @@ opencode-workspace/
 │
 ├── shared/                   # Resources shared across all environments
 │   ├── config/              # Shared OpenCode configuration
-│   └── auth/                # Shared credentials (optional)
+│   ├── auth/                # Shared credentials (optional)
+│   └── vscode/              # Shared VS Code extensions and settings
 │
 └── docs/                     # Documentation
+    ├── architecture/        # → System architecture reference (start here!)
+    ├── guides/              # Quick start, wizard, remote development
+    ├── features/            # Feature documentation
+    └── bugfixes/            # Bug fix technical docs
+```
+
+**→ [View the complete architecture →](docs/architecture/README.md)** (understand how everything works)
 
 ## How It Works
 
