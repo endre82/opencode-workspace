@@ -102,7 +102,9 @@ Configure which OpenCode configurations to mount:
 - Generates `.env` file from template
 - Generates `docker-compose.yml` from template
 - Creates all required subdirectories
-- Returns to dashboard when complete
+- **Automatically builds and starts the container** (`docker compose up -d --build`)
+- Shows progress notifications during build and start
+- Returns to dashboard when complete (with running or stopped status)
 
 ## Navigation
 
@@ -135,23 +137,29 @@ Configure which OpenCode configurations to mount:
 
 ## After Creation
 
-Once created, the environment will appear in the dashboard:
+The wizard automatically builds and starts your environment! You'll see progress notifications:
 
-- **Status**: Initially stopped (red circle)
+1. **"Creating environment..."** - File scaffolding
+2. **"Building and starting container..."** - Docker build and startup in progress
+3. **"✓ Container started"** - Your environment is now running (or error if build failed)
+
+Once created, the environment appears in the dashboard:
+
+- **Status**: Running (green circle) if build succeeded, Stopped (red) if build failed
 - **Port**: Your configured port
 - **Actions Available**:
-  - `s` - Start environment
-  - `b` - Build environment (required before first start)
+  - `s` - Start environment (fast start, no rebuild)
+  - `b` - Rebuild environment (rebuilds if Dockerfile changed)
   - `x` - Stop environment
   - `r` - Restart environment
   - `l` - View logs
   - `i` - Inspect details
 
 **Next Steps:**
-1. Build the environment: Press `b`
-2. Wait for build to complete
-3. Start the environment: Press `s`
-4. Connect: Use the server URL shown in dashboard
+1. Environment is ready to use if build succeeded ✓
+2. If build failed, check logs with `l` and retry with `b`
+3. Connect: Use the server URL shown in dashboard
+4. To rebuild after code changes, press `b` then `s`
 
 ## Tips
 

@@ -131,6 +131,21 @@ class DockerService:
         except Exception as e:
             raise DockerError(f"Failed to build container: {e}")
     
+    def build_and_start_container(self, env_dir: str) -> tuple[bool, str]:
+        """Build and start container (used on first creation)"""
+        try:
+            result = subprocess.run(
+                ["docker", "compose", "up", "-d", "--build"],
+                cwd=env_dir,
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            output = result.stdout + result.stderr
+            return (result.returncode == 0, output)
+        except Exception as e:
+            raise DockerError(f"Failed to build and start container: {e}")
+    
     def exec_command(self, container_name: str, command: List[str]) -> Optional[str]:
         """Execute command in container"""
         try:

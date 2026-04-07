@@ -101,6 +101,15 @@ Phase 4 successfully implements a comprehensive multi-step wizard for creating n
 - ✅ Set proper permissions
 - ✅ Handle volume mount configuration
 
+#### Automatic Build and Start (April 7, 2026)
+- ✅ Runs `docker compose up -d --build` immediately after environment creation
+- ✅ Non-blocking execution via `asyncio.to_thread()`
+- ✅ Progress notifications: "Building and starting container..." → "✓ Container started"
+- ✅ Error handling: Shows build failure message with Docker output
+- ✅ Separate rebuild function: `build_container()` for manual rebuilds
+- ✅ Preserves fast starts: `start_container()` remains as `up -d` (no rebuild)
+- ✅ User can retry build with `b` key if initial build fails
+
 ### Technical Highlights
 
 **Clean Architecture:**
@@ -195,10 +204,19 @@ oc-workspace-tui           # Launch TUI, press 'n' for wizard
 - **Functions/Methods:** 25+ new functions
 - **CSS Rules:** 15+ new style blocks
 
-### Future Enhancements (Optional)
+### Enhancements (Post-Phase 4)
 
-**Not Implemented (Out of Scope for Phase 4):**
-- [ ] Build environment after creation (add "Build now?" dialog)
+**Implemented (April 7, 2026):**
+- [x] **Automatic Build and Start on Creation** - Docker compose `up -d --build` runs immediately after file creation
+  - Added `build_and_start_container()` method to `DockerService`
+  - Wizard calls this method automatically in non-blocking thread
+  - User sees progress notifications: "Building and starting container..." → "✓ Container started"
+  - If build fails, user can retry with `b` key from dashboard
+  - `start_container()` remains as `up -d` (no rebuild on regular starts)
+  - `build_container()` remains as `build` (standalone rebuild function)
+  - Fixes UX issue where environments appeared created but "not found" on first start
+
+**Not Implemented (Out of Scope):**
 - [ ] Advanced options (CORS, custom timezone list)
 - [ ] Template selection (currently uses single template)
 - [ ] Environment cloning
@@ -223,6 +241,7 @@ oc-workspace-tui           # Launch TUI, press 'n' for wizard
 - [x] Deploy to installation directory
 - [x] Verify installed version works
 - [x] Create documentation
+- [x] Automatic build and start after creation (April 7, 2026)
 
 ## Conclusion
 

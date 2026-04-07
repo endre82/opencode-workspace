@@ -670,6 +670,18 @@ class CreationWizard(Screen):
             )
             if success:
                 self.app.notify(f"✓ {message}", severity="information", timeout=5)
+                
+                # Build and start container on first creation
+                env_dir = str(self.workspace_root / "environments" / self.config['name'])
+                self.app.notify("Building and starting container...", timeout=10)
+                build_ok, build_output = await asyncio.to_thread(
+                    self.docker_service.build_and_start_container, env_dir
+                )
+                if build_ok:
+                    self.app.notify("✓ Container started", severity="information", timeout=5)
+                else:
+                    self.app.notify(f"✗ Build/start failed: {build_output}", severity="error", timeout=15)
+                
                 self.app.pop_screen()
             else:
                 self.app.notify(f"✗ {message}", severity="error", timeout=10)
